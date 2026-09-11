@@ -1,0 +1,73 @@
+bellidental-backend/
+└── src/
+    ├── main/
+    │   ├── java/com/bellidental/
+    │   │   ├── BellidentalApplication.java
+    │   │   │
+    │   │   ├── config/                                 # Configuraciones globales
+    │   │   │   ├── SecurityConfig.java
+    │   │   │   ├── OpenApiConfig.java
+    │   │   │   └── WebConfig.java
+    │   │   │
+    │   │   ├── shared/                                 # Kernel transversal reutilizable
+    │   │   │   ├── exception/
+    │   │   │   │   ├── GlobalExceptionHandler.java
+    │   │   │   │   ├── ResourceNotFoundException.java
+    │   │   │   │   └── BusinessException.java
+    │   │   │   ├── response/
+    │   │   │   │   └── ApiResponse.java
+    │   │   │   ├── validation/                         # Validadores personalizados (ej. cédula ecuatoriana)
+    │   │   │   └── util/
+    │   │   │
+    │   │   ├── security/                               # Mecanismo técnico de autenticación
+    │   │   │   ├── JwtService.java
+    │   │   │   ├── JwtAuthenticationFilter.java
+    │   │   │   └── CustomUserDetailsService.java
+    │   │   │
+    │   │   ├── persistence/                                   # CAPA ÚNICA DE PERSISTENCIA Y ENTIDADES
+    │   │   │   ├── entity/                              # TODAS las entidades JPA de la base de datos
+    │   │   │   │   ├── User.java
+    │   │   │   │   ├── Role.java
+    │   │   │   │   ├── Permission.java
+    │   │   │   │   ├── RolePermission.java
+    │   │   │   │   ├── RolePermissionId.java
+    │   │   │   │   ├── UserRole.java
+    │   │   │   │   ├── UserRoleId.java
+    │   │   │   │   ├── Professional.java
+    │   │   │   │   ├── Patient.java
+    │   │   │   │   ├── Appointment.java         # Listo para cuando lo creemos
+    │   │   │   │   ├── ClinicalRecord033.java   # Futuro Formulario 033
+    │   │   │   │   ├── Prescription.java        # Futuro Recetario
+    │   │   │   │   └── PaymentReceipt.java      # Futura Hoja de Abonos
+    │   │   │   │
+    │   │   │   └── repository/                  # Repositorios Spring Data JPA centrales
+    │   │   │       ├── UserRepository.java
+    │   │   │       ├── RoleRepository.java
+    │   │   │       ├── PermissionRepository.java
+    │   │   │       ├── ProfessionalRepository.java
+    │   │   │       └── PatientRepository.java
+            ├── identity/                        # LÓGICA DE NEGOCIO POR MÓDULOS
+            │   ├── api/
+            │   │   ├── AuthController.java
+            │   │   ├── UserController.java
+            │   │   └── dto/
+            │   │       ├── LoginRequest.java
+            │   │       ├── RegisterUserRequest.java
+            │   │       └── AuthResponse.java
+            │   └── application/
+            │       ├── AuthService.java
+            │       └── UserService.java
+            ├── professionals/
+            ├── patients/   
+    │   │   ├── appointments/                           # (Solo directorio raíz - Citas)
+    │   │   ├── clinical/                               # (Solo directorio raíz - Formulario 033 / Odontograma)
+    │   │   ├── prescriptions/                          # (Solo directorio raíz - Recetas)
+    │   │   ├── billing/                                # (Solo directorio raíz - Abonos / Caja)
+    │   │   ├── notifications/                          # (Solo directorio raíz - Webhook WhatsApp)
+    │   │   └── dashboard/                              # (Solo directorio raíz - Métricas agregadas)
+    │   └── resources/
+    │       ├── application.yml
+    │       └── db/
+    │           └── migration/
+    │               └── V1__initial_schema.sql          # Script DDL de las tablas definidas
+    │
