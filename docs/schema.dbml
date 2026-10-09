@@ -1,0 +1,414 @@
+// =======================================================
+// CONVENCIONES
+// PK <entidad>_id | uuid: negocio | bigint: catálogos | timestamptz siempre
+// Restricciones solo-SQL: ver NOTAS SQL al final
+// =======================================================
+
+// ---------- 1. IDENTITY (V1) ----------
+Table users {
+  user_id uuid [pk, default: `gen_random_uuid()`]
+  username varchar(60) [not null, unique]
+  email varchar(150) [not null, unique, note: 'Credencial de inicio de sesión']
+  password_hash varchar(255) [not null]
+  is_system boolean [not null, default: false, note: 'true = bot_whatsapp; no inicia sesión']
+  active boolean [not null, default: true]
+  last_login_at timestamptz
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+  deleted_at timestamptz
+}
+Table roles {
+  role_id bigint [pk, increment]
+  code varchar(50) [not null, unique]
+  name varchar(100) [not null]
+  description varchar(255)
+}
+Table permissions {
+  permission_id bigint [pk, increment]
+  code varchar(80) [not null, unique]
+  module varchar(50) [not null]
+  description varchar(255)
+}
+Table role_permissions {
+  role_id bigint [not null]
+  permission_id bigint [not null]
+  indexes { (role_id, permission_id) [pk] }
+}
+Table user_roles {
+  user_id uuid [not null]
+  role_id bigint [not null]
+  assigned_at timestamptz [not null, default: `now()`]
+  indexes { (user_id, role_id) [pk] }
+}
+
+// ---------- 2. STAFF (V2) ----------
+Table professionals {
+  professional_id uuid [pk, default: `gen_random_uuid()`]
+  user_id uuid [unique]
+  document_type varchar(20) [not null]
+  document_number varchar(30) [not null]
+  first_name varchar(100) [not null]
+  last_name varchar(100) [not null]
+  license_number varchar(50) [not null, unique]
+  phone_e164 varchar(15)
+  color_tag varchar(7)
+  google_calendar_id varchar(255)
+  active boolean [not null, default: true]
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+  deleted_at timestamptz
+  indexes { (document_type, document_number) [unique] }
+}
+Table specialties {
+  specialty_id bigint [pk, increment]
+  name varchar(100) [not null, unique]
+  default_duration_minutes int [not null, default: 30]
+  active boolean [not null, default: true]
+}
+Table professional_specialties {
+  professional_id uuid [not null]
+  specialty_id bigint [not null]
+  active boolean [not null, default: true]
+  indexes { (professional_id, specialty_id) [pk] }
+}
+Table professional_schedules {
+  professional_schedule_id bigint [pk, increment, note: 'Se crea en V6 (agenda)']
+  professional_id uuid [not null]
+  weekday smallint [note: '1=lunes..7=domingo; recurrente (planta)']
+  specific_date date [note: 'Día puntual (especialista ocasional) o excepción']
+  start_time time [note: 'NULL solo si available=false']
+  end_time time
+  available boolean [not null, default: true, note: 'false = no atiende ese día']
+  active boolean [not null, default: true]
+  indexes { (professional_id, weekday); (professional_id, specific_date) }
+}
+
+// ---------- 3. PATIENTS (V3) ----------
+Table patients {
+  patient_id uuid [pk, default: `gen_random_uuid()`]
+  document_type varchar(20) [not null]
+  document_number varchar(30) [not null]
+  first_name varchar(100) [not null]
+  last_name varchar(100) [not null]
+  birth_date date [not null]
+  sex char(1) [not null, note: 'M, F']
+  phone_e164 varchar(15)
+  email varchar(150)
+  blood_type varchar(3)
+  emergency_contact_name varchar(150)
+  emergency_contact_phone_e164 varchar(15)
+  admin_notes text
+  active boolean [not null, default: true]
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+  deleted_at timestamptz
+  indexes { (document_type, document_number) [unique]; phone_e164 }
+}
+
+// ---------- 4. CLINICAL RECORD (V5) ----------
+Table clinical_records {
+  clinical_record_id uuid [pk, default: `gen_random_uuid()`]
+  patient_id uuid [not null, unique]
+  record_number varchar(20) [not null, unique, note: 'HC-000001 por secuencia; provisional hasta confirmar si es la cédula']
+  opened_at date [not null]
+  opened_by uuid [not null]
+  no_known_history boolean [not null, default: false]
+  current_medication text
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+}
+Table medical_history_conditions {
+  medical_history_condition_id bigint [pk, increment]
+  name varchar(100) [not null, unique]
+  display_order smallint [not null]
+  active boolean [not null, default: true]
+}
+Table medical_history_entries {
+  medical_history_entry_id uuid [pk, default: `gen_random_uuid()`]
+  clinical_record_id uuid [not null]
+  medical_history_condition_id bigint [not null]
+  scope varchar(8) [not null, note: 'PERSONAL, FAMILY']
+  relative varchar(30)
+  description text
+  active boolean [not null, default: true]
+  recorded_at timestamptz [not null, default: `now()`]
+  voided_at timestamptz
+  indexes { clinical_record_id }
+}
+
+// ---------- 5. APPOINTMENTS (V6) ----------
+Table appointments {
+  appointment_id uuid [pk, default: `gen_random_uuid()`]
+  patient_id uuid [not null]
+  professional_id uuid [not null]
+  specialty_id bigint [not null]
+  start_at timestamptz [not null]
+  end_at timestamptz [not null]
+  status varchar(12) [not null, default: 'PENDING', note: 'PENDING, CONFIRMED, ATTENDED, CANCELLED, NO_SHOW, RESCHEDULED']
+  source varchar(12) [not null, note: 'RECEPTION, PROFESSIONAL, BOT, WALK_IN']
+  reason varchar(255)
+  notes text
+  checked_in_at timestamptz
+  rescheduled_from_id uuid [unique]
+  google_event_id varchar(255)
+  created_by uuid [not null]
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+  indexes { (professional_id, start_at); (patient_id, start_at); status }
+}
+
+// ---------- 6. CLINICAL (V7) ----------
+Table encounters {
+  encounter_id uuid [pk, default: `gen_random_uuid()`]
+  appointment_id uuid [not null, unique]
+  professional_id uuid [not null, note: 'Quien atendió']
+  start_at timestamptz [not null]
+  end_at timestamptz
+  closed_at timestamptz [note: 'Cierre administrativo']
+  chief_complaint text [not null]
+  current_illness text
+  bp_systolic smallint
+  bp_diastolic smallint
+  heart_rate smallint
+  temperature decimal(4,1)
+  respiratory_rate smallint
+  stomatognathic_exam text
+  periodontal_disease varchar(10)
+  malocclusion varchar(10)
+  fluorosis varchar(10)
+  diagnostic_plan text
+  therapeutic_plan text
+  educational_plan text
+  status varchar(10) [not null, default: 'OPEN', note: 'OPEN, COMPLETED']
+  voided_at timestamptz
+  void_reason text
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+  indexes { professional_id }
+}
+Table icd10_codes {
+  icd10_id bigint [pk, increment]
+  code varchar(10) [not null, unique]
+  description varchar(500) [not null]
+  category varchar(255)
+  active boolean [not null, default: true]
+}
+Table encounter_diagnoses {
+  encounter_diagnosis_id uuid [pk, default: `gen_random_uuid()`]
+  encounter_id uuid [not null]
+  icd10_id bigint [not null]
+  certainty varchar(12) [not null, note: 'PRESUMPTIVE, DEFINITIVE']
+  notes text
+  created_at timestamptz [not null, default: `now()`]
+  voided_at timestamptz
+  indexes { encounter_id }
+}
+
+// ---------- 7. ODONTOGRAM (V8) ----------
+Table teeth {
+  tooth_code smallint [pk, note: 'FDI 11-48 y 51-85']
+  dentition varchar(10) [not null, note: 'PERMANENT, DECIDUOUS']
+  arch varchar(5) [not null, note: 'UPPER, LOWER']
+  quadrant smallint [not null]
+  position smallint [not null]
+  tooth_type varchar(10) [not null, note: 'INCISOR, CANINE, PREMOLAR, MOLAR']
+}
+Table tooth_surfaces {
+  surface_code char(1) [pk, note: 'O, V, L, M, D']
+  name varchar(30) [not null]
+}
+Table dental_conditions {
+  dental_condition_id bigint [pk, increment]
+  code varchar(30) [not null, unique]
+  name varchar(100) [not null]
+  scope varchar(8) [not null, note: 'TOOTH, SURFACE']
+  symbol varchar(20)
+  uses_grade boolean [not null, default: false]
+  cpo_component char(1)
+  ceo_component char(1)
+  active boolean [not null, default: true]
+}
+Table dental_findings {
+  dental_finding_id uuid [pk, default: `gen_random_uuid()`]
+  encounter_id uuid [not null]
+  tooth_code smallint [not null]
+  surface_code char(1)
+  dental_condition_id bigint [not null]
+  status varchar(8) [not null, note: 'PENDING, DONE']
+  grade smallint
+  notes text
+  created_at timestamptz [not null, default: `now()`]
+  voided_at timestamptz
+  indexes { encounter_id; tooth_code }
+}
+
+// ---------- 8. TREATMENTS (V9) ----------
+Table treatment_catalog {
+  treatment_id bigint [pk, increment]
+  code varchar(30) [not null, unique]
+  name varchar(150) [not null]
+  description text
+  base_price decimal(10,2) [not null, default: 0]
+  active boolean [not null, default: true]
+}
+Table performed_treatments {
+  performed_treatment_id uuid [pk, default: `gen_random_uuid()`]
+  encounter_id uuid [not null]
+  treatment_id bigint [not null]
+  encounter_diagnosis_id uuid
+  dental_finding_id uuid
+  tooth_code smallint
+  surface_code char(1)
+  quantity int [not null, default: 1]
+  price decimal(10,2) [not null]
+  notes text
+  created_at timestamptz [not null, default: `now()`]
+  voided_at timestamptz
+  void_reason text
+  indexes { encounter_id }
+}
+
+// ---------- 9. PRESCRIPTIONS (V10) ----------
+Table medications {
+  medication_id bigint [pk, increment]
+  name varchar(150) [not null]
+  presentation varchar(100)
+  concentration varchar(100)
+  route varchar(50)
+  active boolean [not null, default: true]
+  indexes { (name, concentration, presentation) [unique] }
+}
+Table medication_presets {
+  medication_preset_id bigint [pk, increment]
+  medication_id bigint [not null]
+  label varchar(60) [not null]
+  dose varchar(100) [not null]
+  frequency varchar(100) [not null]
+  duration varchar(100) [not null]
+  instructions text
+}
+Table prescriptions {
+  prescription_id uuid [pk, default: `gen_random_uuid()`]
+  encounter_id uuid [not null]
+  encounter_diagnosis_id uuid
+  prescribed_at timestamptz [not null, default: `now()`]
+  general_instructions text
+  status varchar(10) [not null, default: 'DRAFT', note: 'DRAFT, ISSUED']
+  voided_at timestamptz
+  created_at timestamptz [not null, default: `now()`]
+  indexes { encounter_id }
+}
+Table prescription_items {
+  prescription_item_id uuid [pk, default: `gen_random_uuid()`]
+  prescription_id uuid [not null]
+  medication_id bigint [not null]
+  medication_preset_id bigint
+  dose varchar(100) [not null]
+  frequency varchar(100) [not null]
+  duration varchar(100) [not null]
+  quantity varchar(50)
+  instructions text
+}
+
+// ---------- 10. BILLING (V11) ----------
+Table payments {
+  payment_id uuid [pk, default: `gen_random_uuid()`]
+  patient_id uuid [not null]
+  encounter_id uuid
+  amount decimal(10,2) [not null]
+  method varchar(20) [not null, note: 'EFECTIVO, TRANSFERENCIA, TARJETA']
+  receipt_number varchar(30) [unique]
+  paid_at timestamptz [not null, default: `now()`]
+  received_by uuid [not null]
+  voided_at timestamptz
+  void_reason text
+  indexes { patient_id }
+}
+
+// ---------- 11. AUDIT (V12) ----------
+Table revision_info {
+  revision_id bigint [pk, increment]
+  revision_at timestamptz [not null]
+  user_id uuid
+}
+
+// ---------- 12. BOT (V13) ----------
+Table appointment_reminders {
+  reminder_id uuid [pk, default: `gen_random_uuid()`]
+  appointment_id uuid [not null]
+  kind varchar(10) [not null, note: 'DAY_BEFORE']
+  scheduled_at timestamptz [not null]
+  status varchar(10) [not null, default: 'PENDING', note: 'PENDING, SENT, FAILED, RESPONDED, CANCELLED']
+  wa_message_id varchar(100) [unique]
+  sent_at timestamptz
+  response varchar(11) [note: 'CONFIRMED, CANCELLED, RESCHEDULED']
+  responded_at timestamptz
+  indexes { (status, scheduled_at); appointment_id }
+}
+Table privacy_consents {
+  consent_id uuid [pk, default: `gen_random_uuid()`]
+  phone_e164 varchar(15) [not null]
+  patient_id uuid
+  notice_version varchar(10) [not null]
+  accepted_at timestamptz [not null, default: `now()`]
+  indexes { phone_e164 }
+}
+
+// ---------- RELACIONES ----------
+Ref: role_permissions.role_id > roles.role_id [delete: cascade]
+Ref: role_permissions.permission_id > permissions.permission_id [delete: cascade]
+Ref: user_roles.user_id > users.user_id [delete: cascade]
+Ref: user_roles.role_id > roles.role_id [delete: cascade]
+Ref: professionals.user_id - users.user_id [delete: set null]
+Ref: professional_specialties.professional_id > professionals.professional_id
+Ref: professional_specialties.specialty_id > specialties.specialty_id
+Ref: professional_schedules.professional_id > professionals.professional_id
+Ref: clinical_records.patient_id - patients.patient_id
+Ref: clinical_records.opened_by > professionals.professional_id
+Ref: medical_history_entries.clinical_record_id > clinical_records.clinical_record_id
+Ref: medical_history_entries.medical_history_condition_id > medical_history_conditions.medical_history_condition_id
+Ref: appointments.patient_id > patients.patient_id
+Ref: appointments.(professional_id, specialty_id) > professional_specialties.(professional_id, specialty_id)
+Ref: appointments.created_by > users.user_id
+Ref: appointments.rescheduled_from_id - appointments.appointment_id
+Ref: encounters.appointment_id - appointments.appointment_id
+Ref: encounters.professional_id > professionals.professional_id
+Ref: encounter_diagnoses.encounter_id > encounters.encounter_id
+Ref: encounter_diagnoses.icd10_id > icd10_codes.icd10_id
+Ref: dental_findings.encounter_id > encounters.encounter_id
+Ref: dental_findings.tooth_code > teeth.tooth_code
+Ref: dental_findings.surface_code > tooth_surfaces.surface_code
+Ref: dental_findings.dental_condition_id > dental_conditions.dental_condition_id
+Ref: performed_treatments.encounter_id > encounters.encounter_id
+Ref: performed_treatments.treatment_id > treatment_catalog.treatment_id
+Ref: performed_treatments.encounter_diagnosis_id > encounter_diagnoses.encounter_diagnosis_id
+Ref: performed_treatments.dental_finding_id > dental_findings.dental_finding_id
+Ref: performed_treatments.tooth_code > teeth.tooth_code
+Ref: performed_treatments.surface_code > tooth_surfaces.surface_code
+Ref: medication_presets.medication_id > medications.medication_id
+Ref: prescriptions.encounter_id > encounters.encounter_id
+Ref: prescriptions.encounter_diagnosis_id > encounter_diagnoses.encounter_diagnosis_id
+Ref: prescription_items.prescription_id > prescriptions.prescription_id
+Ref: prescription_items.medication_id > medications.medication_id
+Ref: prescription_items.medication_preset_id > medication_presets.medication_preset_id
+Ref: payments.patient_id > patients.patient_id
+Ref: payments.encounter_id > encounters.encounter_id
+Ref: payments.received_by > users.user_id
+Ref: revision_info.user_id > users.user_id
+Ref: appointment_reminders.appointment_id > appointments.appointment_id
+Ref: privacy_consents.patient_id > patients.patient_id
+
+// ---------- NOTAS SQL (no expresables en DBML) ----------
+// - CHECK en toda columna con valores listados en `note`.
+// - appointments: CHECK (end_at > start_at); EXCLUDE USING gist
+//   (professional_id WITH =, tstzrange(start_at, end_at) WITH &&)
+//   WHERE (status NOT IN ('CANCELLED','NO_SHOW','RESCHEDULED')) — requiere btree_gist.
+// - encounter_diagnoses: UNIQUE (encounter_id, icd10_id) WHERE voided_at IS NULL.
+// - appointment_reminders: UNIQUE (appointment_id, kind) WHERE status = 'PENDING'.
+// - payments: CHECK (amount > 0).
+// - professional_schedules: CHECK ((weekday IS NULL) <> (specific_date IS NULL));
+//   CHECK (weekday BETWEEN 1 AND 7); CHECK (available = false OR (start_time IS NOT NULL
+//   AND end_time > start_time)). Varias filas por día = varios turnos (mañana y tarde).
+// - pg_trgm: GIN en icd10_codes.description, medications.name, treatment_catalog.name,
+//   (patients.first_name || ' ' || patients.last_name); icd10_codes(code text_pattern_ops).
+// - REVOKE DELETE en tablas clínicas y payments para el usuario de la aplicación.
