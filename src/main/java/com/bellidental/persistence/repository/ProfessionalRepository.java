@@ -22,4 +22,6 @@ public interface ProfessionalRepository extends JpaRepository<Professional, UUID
 
     @Query("SELECT p FROM Professional p WHERE p.deletedAt IS NULL ORDER BY p.lastName, p.firstName")
     List<Professional> findAllActive();
+
+    Optional<Professional> findByUserId(UUID userId);
 }

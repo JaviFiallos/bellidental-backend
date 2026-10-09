@@ -94,7 +94,7 @@ Los módulos ya existen; se ajustan y se exponen solo estas operaciones.
 **Pacientes** (`com.bellidental.patients`)
 - `POST /patients` (PATIENT_CREATE): cédula, nombres, fecha de nacimiento, sexo obligatorios; teléfono
   normalizado a E.164 sin "+" (`0987654321` → `593987654321`). Cédula ecuatoriana validada (dígito
-  verificador) cuando `document_type = CEDULA`.
+  verificador) cuando `document_type = CI`.
 - `PUT /patients/{id}` (PATIENT_UPDATE). `admin_notes` editable por recepción.
 - `GET /patients?query=` (PATIENT_READ): por cédula exacta, prefijo de teléfono o nombre (ILIKE ahora;
   trigram cuando exista el índice de V7).
@@ -425,7 +425,7 @@ Unit: escritor CSV (escapes, UTF-8, cabeceras).
 | Horarios de profesionales | sí | lectura | **registra** | lectura (disponibilidad) |
 | Historia, atención, odontograma, recetas | lectura* | todo | **nada** | **nada** |
 | Tratamientos | lectura* | registrar | solo vía estado de cuenta | precios del catálogo |
-| Cobros | todo + anular | lectura | registrar, consultar | nada |
+| Cobros | todo + anular | nada | registrar, consultar, anular | nada |
 | Auditoría, exportación | sí | no | no | no |
 
 \* El director tiene además `ODONTOLOGO`. Si se quiere que ADMIN sin ODONTOLOGO no vea clínico,
