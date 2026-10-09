@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -27,21 +28,26 @@ public class PatientController {
     private final PatientService patientService;
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'SECRETARIA', 'ODONTOLOGO')")
-    @Operation(summary = "Listar todos los pacientes activos")
-    public ResponseEntity<ApiResponse<List<PatientResponse>>> findAll() {
-        return ResponseEntity.ok(ApiResponse.ok(patientService.findAll()));
+    @PreAuthorize("hasAuthority('PATIENT_READ')")
+    @Operation(summary = "Buscar pacientes paginados por texto (nombre/apellido) o dígitos (cédula/teléfono)")
+    public ResponseEntity<ApiResponse<Page<PatientResponse>>> search(
+            @RequestParam(required = false, defaultValue = "") String query,
+            @RequestParam(required = false, defaultValue = "0") int page,
+            @RequestParam(required = false, defaultValue = "20") int size
+    ) {
+        if (size > 50) size = 50;
+        return ResponseEntity.ok(ApiResponse.ok(patientService.search(query, page, size)));
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SECRETARIA', 'ODONTOLOGO')")
+    @PreAuthorize("hasAuthority('PATIENT_READ')")
     @Operation(summary = "Obtener paciente por ID")
     public ResponseEntity<ApiResponse<PatientResponse>> findById(@PathVariable UUID id) {
         return ResponseEntity.ok(ApiResponse.ok(patientService.findById(id)));
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'SECRETARIA')")
+    @PreAuthorize("hasAuthority('PATIENT_CREATE')")
     @Operation(summary = "Registrar nuevo paciente")
     public ResponseEntity<ApiResponse<PatientResponse>> create(
             @Valid @RequestBody CreatePatientRequest request
@@ -52,7 +58,7 @@ public class PatientController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SECRETARIA')")
+    @PreAuthorize("hasAuthority('PATIENT_UPDATE')")
     @Operation(summary = "Actualizar datos de un paciente")
     public ResponseEntity<ApiResponse<PatientResponse>> update(
             @PathVariable UUID id,
@@ -61,11 +67,19 @@ public class PatientController {
         return ResponseEntity.ok(ApiResponse.ok("Paciente actualizado.", patientService.update(id, request)));
     }
 
-    @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Eliminar paciente (soft delete)")
-    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable UUID id) {
-        patientService.delete(id);
-        return ResponseEntity.ok(ApiResponse.ok("Paciente eliminado exitosamente."));
+    @PostMapping("/{id}/deactivate")
+    @PreAuthorize("hasAuthority('PATIENT_UPDATE')")
+    @Operation(summary = "Desactivar un paciente")
+    public ResponseEntity<ApiResponse<Void>> deactivate(@PathVariable UUID id) {
+        patientService.changeActiveStatus(id, false);
+        return ResponseEntity.ok(ApiResponse.ok("Paciente desactivado."));
+    }
+
+    @PostMapping("/{id}/activate")
+    @PreAuthorize("hasAuthority('PATIENT_UPDATE')")
+    @Operation(summary = "Activar un paciente")
+    public ResponseEntity<ApiResponse<Void>> activate(@PathVariable UUID id) {
+        patientService.changeActiveStatus(id, true);
+        return ResponseEntity.ok(ApiResponse.ok("Paciente activado."));
     }
 }

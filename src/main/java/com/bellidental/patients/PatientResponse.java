@@ -6,7 +6,9 @@ import com.bellidental.shared.enums.DocumentType;
 import com.bellidental.shared.enums.DocumentType;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.Period;
+import java.time.ZoneId;
 import java.util.UUID;
 
 /**
@@ -20,6 +22,7 @@ public record PatientResponse(
         String lastName,
         String fullName,
         LocalDate birthDate,
+        Integer age,
         String sex,
         BloodType bloodType,
         String bloodTypeLabel,
@@ -28,10 +31,15 @@ public record PatientResponse(
         String emergencyContactName,
         String emergencyContactPhoneE164,
         boolean active,
-        LocalDateTime createdAt,
-        LocalDateTime updatedAt
+        OffsetDateTime createdAt,
+        OffsetDateTime updatedAt
 ) {
-    public static PatientResponse from(Patient p) {
+    public static PatientResponse from(Patient p, ZoneId clinicZone) {
+        Integer age = null;
+        if (p.getBirthDate() != null) {
+            age = Period.between(p.getBirthDate(), LocalDate.now(clinicZone)).getYears();
+        }
+
         return new PatientResponse(
                 p.getId(),
                 p.getDocumentType(),
@@ -40,6 +48,7 @@ public record PatientResponse(
                 p.getLastName(),
                 p.getFirstName() + " " + p.getLastName(),
                 p.getBirthDate(),
+                age,
                 p.getSex(),
                 p.getBloodType(),
                 p.getBloodType() != null ? p.getBloodType().getLabel() : null,

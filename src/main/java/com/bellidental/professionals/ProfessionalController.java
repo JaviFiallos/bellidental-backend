@@ -27,21 +27,21 @@ public class ProfessionalController {
     private final ProfessionalService professionalService;
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'SECRETARIA', 'ODONTOLOGO')")
+    @PreAuthorize("hasAuthority('PROFESSIONAL_READ')")
     @Operation(summary = "Listar todos los profesionales activos")
     public ResponseEntity<ApiResponse<List<ProfessionalResponse>>> findAll() {
         return ResponseEntity.ok(ApiResponse.ok(professionalService.findAll()));
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SECRETARIA', 'ODONTOLOGO')")
+    @PreAuthorize("hasAuthority('PROFESSIONAL_READ')")
     @Operation(summary = "Obtener profesional por ID")
     public ResponseEntity<ApiResponse<ProfessionalResponse>> findById(@PathVariable UUID id) {
         return ResponseEntity.ok(ApiResponse.ok(professionalService.findById(id)));
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('PROFESSIONAL_MANAGE')")
     @Operation(summary = "Registrar nuevo profesional")
     public ResponseEntity<ApiResponse<ProfessionalResponse>> create(
             @Valid @RequestBody CreateProfessionalRequest request
@@ -52,7 +52,7 @@ public class ProfessionalController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('PROFESSIONAL_MANAGE')")
     @Operation(summary = "Actualizar datos de un profesional")
     public ResponseEntity<ApiResponse<ProfessionalResponse>> update(
             @PathVariable UUID id,
@@ -61,11 +61,19 @@ public class ProfessionalController {
         return ResponseEntity.ok(ApiResponse.ok("Profesional actualizado.", professionalService.update(id, request)));
     }
 
-    @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Eliminar profesional (soft delete)")
-    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable UUID id) {
-        professionalService.delete(id);
-        return ResponseEntity.ok(ApiResponse.ok("Profesional eliminado exitosamente."));
+    @PostMapping("/{id}/deactivate")
+    @PreAuthorize("hasAuthority('PROFESSIONAL_MANAGE')")
+    @Operation(summary = "Desactivar un profesional")
+    public ResponseEntity<ApiResponse<Void>> deactivate(@PathVariable UUID id) {
+        professionalService.changeActiveStatus(id, false);
+        return ResponseEntity.ok(ApiResponse.ok("Profesional desactivado."));
+    }
+
+    @PostMapping("/{id}/activate")
+    @PreAuthorize("hasAuthority('PROFESSIONAL_MANAGE')")
+    @Operation(summary = "Activar un profesional")
+    public ResponseEntity<ApiResponse<Void>> activate(@PathVariable UUID id) {
+        professionalService.changeActiveStatus(id, true);
+        return ResponseEntity.ok(ApiResponse.ok("Profesional activado."));
     }
 }

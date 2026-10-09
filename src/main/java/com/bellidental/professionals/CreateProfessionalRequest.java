@@ -4,7 +4,9 @@ import com.bellidental.shared.enums.DocumentType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.Pattern;
 
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -30,13 +32,19 @@ public record CreateProfessionalRequest(
         @Size(max = 100)
         String lastName,
 
+        @NotBlank(message = "El número de licencia es obligatorio")
         @Size(max = 50)
         String licenseNumber,
 
         @Size(max = 15)
         String phoneE164,
 
+        @Size(max = 255)
+        String googleCalendarId,
+
         /** Color hexadecimal para el calendario (#RRGGBB). */
-        @Size(max = 7, message = "El color debe ser un código hexadecimal de 7 caracteres (#RRGGBB)")
-        String colorTag
+        @Pattern(regexp = "^#[0-9A-Fa-f]{6}$", message = "El color debe ser un código hexadecimal de 7 caracteres (#RRGGBB)")
+        String colorTag,
+
+        List<Long> specialtyIds
 ) {}

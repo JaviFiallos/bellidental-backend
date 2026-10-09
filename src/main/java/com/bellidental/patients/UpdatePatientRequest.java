@@ -4,6 +4,7 @@ import com.bellidental.shared.enums.BloodType;
 import com.bellidental.shared.enums.DocumentType;
 import jakarta.validation.constraints.Past;
 import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.Pattern;
 
 import java.time.LocalDate;
 
@@ -26,7 +27,7 @@ public record UpdatePatientRequest(
         @Past(message = "La fecha de nacimiento debe ser una fecha pasada")
         LocalDate birthDate,
 
-        @Size(max = 1)
+        @Pattern(regexp = "^[MF]$", message = "El sexo debe ser M o F")
         String sex,
 
         BloodType bloodType,
@@ -43,5 +44,5 @@ public record UpdatePatientRequest(
         @Size(max = 15)
         String emergencyContactPhoneE164,
 
-        Boolean active
+        String adminNotes
 ) {}
