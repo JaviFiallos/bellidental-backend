@@ -15,5 +15,7 @@ public interface ProfessionalDirectory {
 
     boolean hasActiveSpecialty(UUID professionalId, Long specialtyId);
 
+    Optional<SpecialtySummary> findSpecialty(Long specialtyId);
+
     Optional<ProfessionalSummary> findByUserId(UUID userId);
 }

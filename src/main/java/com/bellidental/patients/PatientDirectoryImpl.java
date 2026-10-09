@@ -6,6 +6,7 @@ import com.bellidental.shared.enums.DocumentType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -34,6 +35,13 @@ public class PatientDirectoryImpl implements PatientDirectory {
     public Optional<PatientSummary> findById(UUID id) {
         return patientRepository.findByIdAndDeletedAtIsNull(id)
                 .map(this::toSummary);
+    }
+
+    @Override
+    public List<PatientSummary> findByIds(Collection<UUID> ids) {
+        return patientRepository.findByIdInAndDeletedAtIsNull(ids).stream()
+                .map(this::toSummary)
+                .toList();
     }
 
     @Override

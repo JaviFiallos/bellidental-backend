@@ -2,6 +2,7 @@ package com.bellidental.patients;
 
 import com.bellidental.shared.enums.DocumentType;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -12,6 +13,8 @@ import java.util.UUID;
 public interface PatientDirectory {
 
     Optional<PatientSummary> findById(UUID id);
+    
+    List<PatientSummary> findByIds(Collection<UUID> ids);
 
     List<PatientSummary> findActiveByPhone(String phoneE164);
 
