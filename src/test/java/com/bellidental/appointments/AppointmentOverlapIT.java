@@ -76,7 +76,7 @@ class AppointmentOverlapIT {
         headers.setBearerAuth(token);
 
         // 2. Create patient via API
-        String randomSuffix = java.util.UUID.randomUUID().toString().substring(0, 5);
+        String randomSuffix = UUID.randomUUID().toString().substring(0, 5);
         CreatePatientRequest patientReq = new CreatePatientRequest(
                 DocumentType.PASAPORTE, "A17100" + randomSuffix, "Test", "Patient",
                 LocalDate.of(1990, 1, 1), "M", null, "0999999999", null, null, null

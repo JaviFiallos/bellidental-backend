@@ -222,7 +222,6 @@ class AppointmentServiceTest {
         when(professionalDirectory.findSpecialty(1L)).thenReturn(Optional.of(new SpecialtySummary(1L, "General", 30, true)));
         when(professionalDirectory.hasActiveSpecialty(professionalId, 1L)).thenReturn(true);
         when(clock.now()).thenReturn(now);
-        when(currentUser.professionalId()).thenReturn(Optional.of(professionalId));
         when(currentUser.userId()).thenReturn(userId);
 
         Appointment newAppt = Appointment.builder().id(UUID.randomUUID()).build();

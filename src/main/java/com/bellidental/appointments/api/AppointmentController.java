@@ -3,6 +3,7 @@ package com.bellidental.appointments.api;
 import com.bellidental.appointments.api.dto.AppointmentResponse;
 import com.bellidental.appointments.api.dto.CreateAppointmentRequest;
 import com.bellidental.appointments.api.dto.RescheduleAppointmentRequest;
+import com.bellidental.appointments.api.dto.WalkInRequest;
 import com.bellidental.appointments.application.AppointmentService;
 import com.bellidental.shared.response.ApiResponse;
 import jakarta.validation.Valid;
@@ -34,6 +35,12 @@ public class AppointmentController {
     @PreAuthorize("hasAuthority('APPOINTMENT_CREATE')")
     public ResponseEntity<ApiResponse<AppointmentResponse>> createAppointment(@Valid @RequestBody CreateAppointmentRequest req) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok("Cita creada.", appointmentService.create(req)));
+    }
+
+    @PostMapping("/walk-in")
+    @PreAuthorize("hasAuthority('APPOINTMENT_CREATE')")
+    public ResponseEntity<ApiResponse<AppointmentResponse>> createWalkIn(@Valid @RequestBody WalkInRequest req) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok("Atención sin cita registrada.", appointmentService.walkIn(req)));
     }
 
     @PostMapping("/{id}/confirm")

@@ -5,11 +5,14 @@ import com.bellidental.appointments.AppointmentEventType;
 import com.bellidental.appointments.api.dto.AppointmentResponse;
 import com.bellidental.appointments.api.dto.CreateAppointmentRequest;
 import com.bellidental.appointments.api.dto.RescheduleAppointmentRequest;
+import com.bellidental.appointments.api.dto.WalkInRequest;
 import com.bellidental.appointments.domain.AppointmentOverlapException;
 import com.bellidental.appointments.domain.AppointmentTransitions;
 import com.bellidental.appointments.domain.EffectiveScheduleResolver;
 import com.bellidental.appointments.domain.ScheduleRule;
 import com.bellidental.appointments.domain.Shift;
+import com.bellidental.appointments.domain.TimeRange;
+import com.bellidental.appointments.domain.WalkInSlotFinder;
 import com.bellidental.patients.PatientDirectory;
 import com.bellidental.patients.PatientSummary;
 import com.bellidental.persistence.entity.Appointment;
@@ -21,6 +24,7 @@ import com.bellidental.professionals.ProfessionalSummary;
 import com.bellidental.professionals.SpecialtySummary;
 import com.bellidental.security.CurrentUser;
 import com.bellidental.shared.enums.AppointmentSource;
+import com.bellidental.shared.enums.AppointmentStatus;
 import com.bellidental.shared.exception.BusinessException;
 import com.bellidental.shared.exception.InvalidInputException;
 import com.bellidental.shared.exception.ResourceNotFoundException;
@@ -36,6 +40,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -52,29 +57,28 @@ public class AppointmentService {
     private final ProfessionalScheduleRepository scheduleRepository;
     private final PatientDirectory patientDirectory;
     private final ProfessionalDirectory professionalDirectory;
+    private final AvailabilityService availabilityService;
     private final CurrentUser currentUser;
     private final ClinicClock clock;
     private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
     public AppointmentResponse create(CreateAppointmentRequest request) {
-        return createInternal(request, null);
+        AppointmentSource source = currentUser.professionalId().isPresent()
+                ? AppointmentSource.PROFESSIONAL
+                : AppointmentSource.RECEPTION;
+        return book(request, source, currentUser.userId());
     }
 
-    private AppointmentResponse createInternal(CreateAppointmentRequest request, Appointment originalForReschedule) {
-        PatientSummary patient = patientDirectory.findById(request.patientId())
-                .orElseThrow(() -> new ResourceNotFoundException("Paciente no encontrado."));
-        if (!patient.active()) {
-            throw new BusinessException("El paciente no está activo.");
-        }
+    /** Reglas de creación comunes a HTTP, bot y reprogramación. */
+    @Transactional
+    public AppointmentResponse book(CreateAppointmentRequest request, AppointmentSource source, UUID createdBy) {
+        return book(request, source, createdBy, null);
+    }
 
-        SpecialtySummary specialty = professionalDirectory.findSpecialty(request.specialtyId())
-                .filter(SpecialtySummary::active)
-                .orElseThrow(() -> new ResourceNotFoundException("Especialidad no encontrada o inactiva."));
-
-        if (!professionalDirectory.hasActiveSpecialty(request.professionalId(), request.specialtyId())) {
-            throw new BusinessException("El profesional no tiene activa esta especialidad.");
-        }
+    private AppointmentResponse book(CreateAppointmentRequest request, AppointmentSource source, UUID createdBy, Appointment original) {
+        PatientSummary patient = loadActivePatient(request.patientId());
+        SpecialtySummary specialty = loadBookableSpecialty(request.professionalId(), request.specialtyId());
 
         if (request.startAt().isBefore(clock.now())) {
             throw new InvalidInputException("La cita no puede empezar en el pasado.");
@@ -86,13 +90,6 @@ public class AppointmentService {
         }
         if (!endAt.isAfter(request.startAt())) {
             throw new InvalidInputException("El fin de la cita debe ser posterior al inicio.");
-        }
-
-        AppointmentSource source;
-        if (currentUser.professionalId().isPresent()) {
-            source = AppointmentSource.PROFESSIONAL;
-        } else {
-            source = AppointmentSource.RECEPTION;
         }
 
         if (source == AppointmentSource.RECEPTION || source == AppointmentSource.BOT) {
@@ -108,25 +105,79 @@ public class AppointmentService {
                 .source(source)
                 .reason(request.reason())
                 .notes(request.notes())
-                .createdBy(currentUser.userId())
-                .rescheduledFromId(originalForReschedule != null ? originalForReschedule.getId() : null)
+                .createdBy(createdBy)
+                .rescheduledFromId(original != null ? original.getId() : null)
                 .build();
 
+        AppointmentEventType eventType = original != null ? AppointmentEventType.RESCHEDULED : AppointmentEventType.CREATED;
+        return persistAndRespond(appointment, patient, specialty, eventType, original != null ? original.getId() : null);
+    }
+
+    /** Atención sin cita: primer hueco desde ahora hasta el fin del día local, sin horario del profesional. */
+    @Transactional
+    public AppointmentResponse walkIn(WalkInRequest request) {
+        PatientSummary patient = loadActivePatient(request.patientId());
+        SpecialtySummary specialty = loadBookableSpecialty(request.professionalId(), request.specialtyId());
+
+        OffsetDateTime now = clock.now();
+        OffsetDateTime endOfDay = clock.today().atTime(23, 59).atZone(clock.zone()).toOffsetDateTime();
+        List<TimeRange> busy = availabilityService.findBusyRanges(request.professionalId(), now, endOfDay);
+
+        OffsetDateTime startAt = WalkInSlotFinder.findFirst(now, specialty.defaultDurationMinutes(), busy, endOfDay)
+                .orElseThrow(() -> new BusinessException("Sin hueco hoy para este profesional."));
+
+        Appointment appointment = Appointment.builder()
+                .patientId(request.patientId())
+                .professionalId(request.professionalId())
+                .specialtyId(request.specialtyId())
+                .startAt(startAt)
+                .endAt(startAt.plusMinutes(specialty.defaultDurationMinutes()))
+                .source(AppointmentSource.WALK_IN)
+                .status(AppointmentStatus.PENDING)
+                .checkedInAt(now)
+                .createdBy(currentUser.userId())
+                .build();
+
+        return persistAndRespond(appointment, patient, specialty, AppointmentEventType.CREATED, null);
+    }
+
+    private PatientSummary loadActivePatient(UUID patientId) {
+        PatientSummary patient = patientDirectory.findById(patientId)
+                .orElseThrow(() -> new ResourceNotFoundException("Paciente no encontrado."));
+        if (!patient.active()) {
+            throw new BusinessException("El paciente no está activo.");
+        }
+        return patient;
+    }
+
+    private SpecialtySummary loadBookableSpecialty(UUID professionalId, Long specialtyId) {
+        SpecialtySummary specialty = professionalDirectory.findSpecialty(specialtyId)
+                .filter(SpecialtySummary::active)
+                .orElseThrow(() -> new ResourceNotFoundException("Especialidad no encontrada o inactiva."));
+        if (!professionalDirectory.hasActiveSpecialty(professionalId, specialtyId)) {
+            throw new BusinessException("El profesional no tiene activa esta especialidad.");
+        }
+        return specialty;
+    }
+
+    private AppointmentResponse persistAndRespond(Appointment appointment, PatientSummary patient, SpecialtySummary specialty,
+                                                  AppointmentEventType eventType, UUID previousId) {
+        Appointment saved = saveOrTranslateOverlap(appointment);
+        eventPublisher.publishEvent(new AppointmentEvent(saved.getId(), eventType, previousId));
+
+        ProfessionalSummary professional = professionalDirectory.findById(saved.getProfessionalId()).orElse(null);
+        return toResponse(saved, fullName(patient), professional, specialty.name());
+    }
+
+    private Appointment saveOrTranslateOverlap(Appointment appointment) {
         try {
-            appointment = appointmentRepository.saveAndFlush(appointment);
+            return appointmentRepository.saveAndFlush(appointment);
         } catch (DataIntegrityViolationException ex) {
             if (isOverlapViolation(ex)) {
                 throw new AppointmentOverlapException("El profesional ya tiene una cita en ese horario.");
             }
             throw ex;
         }
-
-        AppointmentEventType eventType = originalForReschedule != null ? AppointmentEventType.RESCHEDULED : AppointmentEventType.CREATED;
-        UUID previousId = originalForReschedule != null ? originalForReschedule.getId() : null;
-        eventPublisher.publishEvent(new AppointmentEvent(appointment.getId(), eventType, previousId));
-
-        ProfessionalSummary professional = professionalDirectory.findById(request.professionalId()).orElse(null);
-        return toResponse(appointment, fullName(patient), professional, specialty.name());
     }
 
     private boolean isOverlapViolation(DataIntegrityViolationException exception) {
@@ -150,7 +201,7 @@ public class AppointmentService {
         List<ScheduleRule> activeSchedules = schedules.stream().map(ScheduleService::toRule).toList();
         List<Shift> shifts = EffectiveScheduleResolver.resolve(date, activeSchedules);
 
-        boolean fitsInAnyShift = shifts.stream().anyMatch(shift -> 
+        boolean fitsInAnyShift = shifts.stream().anyMatch(shift ->
             !startTime.isBefore(shift.startTime()) && !endTime.isAfter(shift.endTime())
         );
 
@@ -193,12 +244,25 @@ public class AppointmentService {
     }
 
     @Transactional
+    public void markAttended(UUID id) {
+        Appointment appointment = getAppointment(id);
+        appointment.setStatus(AppointmentTransitions.attend(appointment.getStatus(), appointment.getCheckedInAt() != null));
+        appointmentRepository.save(appointment);
+        eventPublisher.publishEvent(new AppointmentEvent(id, AppointmentEventType.STATUS_CHANGED, null));
+    }
+
+    @Transactional
     public AppointmentResponse reschedule(UUID id, RescheduleAppointmentRequest request) {
+        return reschedule(id, request, currentUser.userId());
+    }
+
+    @Transactional
+    public AppointmentResponse reschedule(UUID id, RescheduleAppointmentRequest request, UUID requestedBy) {
         Appointment original = getAppointment(id);
         original.setStatus(AppointmentTransitions.reschedule(original.getStatus(), original.getCheckedInAt() != null));
         appointmentRepository.saveAndFlush(original);
 
-        CreateAppointmentRequest newReq = new CreateAppointmentRequest(
+        CreateAppointmentRequest newRequest = new CreateAppointmentRequest(
                 original.getPatientId(),
                 request.professionalId() != null ? request.professionalId() : original.getProfessionalId(),
                 request.specialtyId() != null ? request.specialtyId() : original.getSpecialtyId(),
@@ -208,7 +272,7 @@ public class AppointmentService {
                 original.getNotes()
         );
 
-        return createInternal(newReq, original);
+        return book(newRequest, original.getSource(), requestedBy, original);
     }
 
     @Transactional(readOnly = true)
@@ -233,13 +297,13 @@ public class AppointmentService {
 
         Map<UUID, ProfessionalSummary> activeProfessionals = professionalDirectory.findActive().stream()
                 .collect(Collectors.toMap(ProfessionalSummary::id, Function.identity()));
-                
-        Map<Long, String> specialties = new java.util.HashMap<>();
+
+        Map<Long, String> specialtyNames = new HashMap<>();
 
         return appointments.stream().map(appointment -> {
             String patientName = patientNames.getOrDefault(appointment.getPatientId(), "Desconocido");
             ProfessionalSummary professional = activeProfessionals.get(appointment.getProfessionalId());
-            String specialtyName = specialties.computeIfAbsent(appointment.getSpecialtyId(), id -> 
+            String specialtyName = specialtyNames.computeIfAbsent(appointment.getSpecialtyId(), id ->
                     professionalDirectory.findSpecialty(id).map(SpecialtySummary::name).orElse("Desconocido"));
             return toResponse(appointment, patientName, professional, specialtyName);
         }).toList();
@@ -261,8 +325,9 @@ public class AppointmentService {
         return appointmentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Cita no encontrada."));
     }
-    private String fullName(PatientSummary p) {
-        return p.firstName() + " " + p.lastName();
+
+    private String fullName(PatientSummary patient) {
+        return patient.firstName() + " " + patient.lastName();
     }
 
     private AppointmentResponse toResponse(Appointment appointment, String patientName, ProfessionalSummary professional, String specialtyName) {
