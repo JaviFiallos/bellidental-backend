@@ -2,7 +2,6 @@ package com.bellidental.professionals;
 
 import com.bellidental.persistence.entity.Professional;
 import com.bellidental.shared.enums.DocumentType;
-import com.bellidental.shared.enums.Specialty;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -18,11 +17,8 @@ public record ProfessionalResponse(
         String firstName,
         String lastName,
         String fullName,
-        Specialty specialty,
-        String specialtyLabel,
         String licenseNumber,
-        String phone,
-        String email,
+        String phoneE164,
         String colorTag,
         boolean active,
         LocalDateTime createdAt,
@@ -37,11 +33,8 @@ public record ProfessionalResponse(
                 p.getFirstName(),
                 p.getLastName(),
                 p.getFirstName() + " " + p.getLastName(),
-                p.getSpecialty(),
-                p.getSpecialty().getLabel(),
                 p.getLicenseNumber(),
-                p.getPhone(),
-                p.getEmail(),
+                p.getPhoneE164(),
                 p.getColorTag(),
                 p.isActive(),
                 p.getCreatedAt(),

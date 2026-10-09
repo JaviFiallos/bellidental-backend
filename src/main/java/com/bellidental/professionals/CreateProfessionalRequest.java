@@ -1,7 +1,6 @@
 package com.bellidental.professionals;
 
 import com.bellidental.shared.enums.DocumentType;
-import com.bellidental.shared.enums.Specialty;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -31,18 +30,11 @@ public record CreateProfessionalRequest(
         @Size(max = 100)
         String lastName,
 
-        @NotNull(message = "La especialidad es obligatoria")
-        Specialty specialty,
-
-        @NotBlank(message = "El número de licencia es obligatorio")
         @Size(max = 50)
         String licenseNumber,
 
-        @Size(max = 30)
-        String phone,
-
-        @Size(max = 150)
-        String email,
+        @Size(max = 15)
+        String phoneE164,
 
         /** Color hexadecimal para el calendario (#RRGGBB). */
         @Size(max = 7, message = "El color debe ser un código hexadecimal de 7 caracteres (#RRGGBB)")

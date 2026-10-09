@@ -23,7 +23,7 @@ public class User {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(updatable = false, nullable = false)
+    @Column(name = "user_id", updatable = false, nullable = false)
     private UUID id;
 
     @Column(nullable = false, unique = true, length = 60)
@@ -35,12 +35,16 @@ public class User {
     @Column(name = "password_hash", nullable = false, length = 255)
     private String passwordHash;
 
+    @Column(name = "is_system", nullable = false)
+    @Builder.Default
+    private boolean isSystem = false;
+
     @Column(nullable = false)
     @Builder.Default
     private boolean active = true;
 
-    @Column(name = "last_login")
-    private LocalDateTime lastLogin;
+    @Column(name = "last_login_at")
+    private LocalDateTime lastLoginAt;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

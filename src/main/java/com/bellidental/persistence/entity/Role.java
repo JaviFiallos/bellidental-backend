@@ -22,9 +22,9 @@ import java.util.UUID;
 public class Role {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(updatable = false, nullable = false)
-    private UUID id;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "role_id", updatable = false, nullable = false)
+    private Long id;
 
     /** Código único del rol: ADMIN, ODONTOLOGO, SECRETARIA */
     @Column(nullable = false, unique = true, length = 50)
@@ -36,20 +36,8 @@ public class Role {
     @Column(length = 255)
     private String description;
 
-    /** Si es true, el rol es del sistema y no puede eliminarse desde la interfaz. */
-    @Column(name = "is_system", nullable = false)
-    @Builder.Default
-    private boolean isSystem = false;
-
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
-
     @OneToMany(mappedBy = "role", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @Builder.Default
     private Set<RolePermission> rolePermissions = new HashSet<>();
 
-    @PrePersist
-    protected void onCreate() {
-        this.createdAt = LocalDateTime.now();
-    }
 }

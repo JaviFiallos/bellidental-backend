@@ -2,7 +2,6 @@ package com.bellidental.patients;
 
 import com.bellidental.shared.enums.BloodType;
 import com.bellidental.shared.enums.DocumentType;
-import com.bellidental.shared.enums.Gender;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Past;
@@ -16,8 +15,6 @@ import java.util.UUID;
  */
 public record CreatePatientRequest(
 
-        /** ID de cuenta de portal — opcional. */
-        UUID userId,
 
         @NotNull(message = "El tipo de documento es obligatorio")
         DocumentType documentType,
@@ -38,21 +35,20 @@ public record CreatePatientRequest(
         @Past(message = "La fecha de nacimiento debe ser una fecha pasada")
         LocalDate birthDate,
 
-        Gender gender,
+        @Size(max = 1)
+        String sex,
 
         BloodType bloodType,
 
-        @Size(max = 30)
-        String phone,
+        @Size(max = 15)
+        String phoneE164,
 
         @Size(max = 150)
         String email,
 
-        String address,
-
         @Size(max = 150)
         String emergencyContactName,
 
-        @Size(max = 30)
-        String emergencyContactPhone
+        @Size(max = 15)
+        String emergencyContactPhoneE164
 ) {}

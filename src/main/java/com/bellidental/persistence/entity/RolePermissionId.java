@@ -21,8 +21,8 @@ import java.util.UUID;
 public class RolePermissionId implements Serializable {
 
     @Column(name = "role_id")
-    private UUID roleId;
+    private Long roleId;
 
     @Column(name = "permission_id")
-    private UUID permissionId;
+    private Long permissionId;
 }

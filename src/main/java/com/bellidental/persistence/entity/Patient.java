@@ -25,13 +25,9 @@ public class Patient {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(updatable = false, nullable = false)
+    @Column(name = "patient_id", updatable = false, nullable = false)
     private UUID id;
 
-    /** Cuenta de portal del paciente — opcional. */
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", unique = true)
-    private User user;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "document_type", nullable = false, length = 20)
@@ -49,29 +45,28 @@ public class Patient {
     @Column(name = "birth_date", nullable = false)
     private LocalDate birthDate;
 
-    @Enumerated(EnumType.STRING)
-    @Column(length = 20)
-    private Gender gender;
+    @Column(name = "sex", columnDefinition = "bpchar", nullable = false)
+    private String sex;
 
     /** Tipo de sangre — relevante en procedimientos quirúrgicos. */
     @Enumerated(EnumType.STRING)
-    @Column(name = "blood_type", length = 10)
+    @Column(name = "blood_type", length = 3)
     private BloodType bloodType;
 
-    @Column(length = 30)
-    private String phone;
+    @Column(name = "phone_e164", length = 15)
+    private String phoneE164;
 
     @Column(length = 150)
     private String email;
 
-    @Column(columnDefinition = "TEXT")
-    private String address;
+    @Column(name = "admin_notes", columnDefinition = "TEXT")
+    private String adminNotes;
 
     @Column(name = "emergency_contact_name", length = 150)
     private String emergencyContactName;
 
-    @Column(name = "emergency_contact_phone", length = 30)
-    private String emergencyContactPhone;
+    @Column(name = "emergency_contact_phone_e164", length = 15)
+    private String emergencyContactPhoneE164;
 
     @Column(nullable = false)
     @Builder.Default

@@ -23,7 +23,7 @@ public class Professional {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(updatable = false, nullable = false)
+    @Column(name = "professional_id", updatable = false, nullable = false)
     private UUID id;
 
     /** Cuenta de sistema asociada — opcional (puede operar sin portal). */
@@ -44,19 +44,15 @@ public class Professional {
     @Column(name = "last_name", nullable = false, length = 100)
     private String lastName;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 100)
-    private Specialty specialty;
-
     /** Número de registro profesional / sanitario. */
     @Column(name = "license_number", nullable = false, unique = true, length = 50)
     private String licenseNumber;
 
-    @Column(length = 30)
-    private String phone;
+    @Column(name = "phone_e164", length = 15)
+    private String phoneE164;
 
-    @Column(length = 150)
-    private String email;
+    @Column(name = "google_calendar_id", length = 255)
+    private String googleCalendarId;
 
     /** Color hexadecimal para identificar las citas del profesional en el calendario. */
     @Column(name = "color_tag", length = 7)

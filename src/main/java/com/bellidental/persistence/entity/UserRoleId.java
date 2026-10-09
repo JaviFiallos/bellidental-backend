@@ -24,5 +24,5 @@ public class UserRoleId implements Serializable {
     private UUID userId;
 
     @Column(name = "role_id")
-    private UUID roleId;
+    private Long roleId;
 }

@@ -51,10 +51,8 @@ public class ProfessionalService {
                 .documentNumber(request.documentNumber())
                 .firstName(request.firstName())
                 .lastName(request.lastName())
-                .specialty(request.specialty())
                 .licenseNumber(request.licenseNumber())
-                .phone(request.phone())
-                .email(request.email())
+                .phoneE164(request.phoneE164())
                 .colorTag(request.colorTag());
 
         if (request.userId() != null) {
@@ -86,10 +84,8 @@ public class ProfessionalService {
         if (request.documentNumber() != null) professional.setDocumentNumber(request.documentNumber());
         if (request.firstName() != null)     professional.setFirstName(request.firstName());
         if (request.lastName() != null)      professional.setLastName(request.lastName());
-        if (request.specialty() != null)     professional.setSpecialty(request.specialty());
         if (request.licenseNumber() != null) professional.setLicenseNumber(request.licenseNumber());
-        if (request.phone() != null)         professional.setPhone(request.phone());
-        if (request.email() != null)         professional.setEmail(request.email());
+        if (request.phoneE164() != null)     professional.setPhoneE164(request.phoneE164());
         if (request.colorTag() != null)      professional.setColorTag(request.colorTag());
         if (request.active() != null)        professional.setActive(request.active());
 

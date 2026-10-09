@@ -19,9 +19,9 @@ import java.util.UUID;
 public class Permission {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(updatable = false, nullable = false)
-    private UUID id;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "permission_id", updatable = false, nullable = false)
+    private Long id;
 
     /** Identificador único del permiso. Ej: PATIENT_CREATE, BILLING_VIEW */
     @Column(nullable = false, unique = true, length = 80)

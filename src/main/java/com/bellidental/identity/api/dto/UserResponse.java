@@ -14,7 +14,7 @@ public record UserResponse(
         String username,
         String email,
         boolean active,
-        LocalDateTime lastLogin,
+        LocalDateTime lastLoginAt,
         LocalDateTime createdAt,
         List<String> roles
 ) {
@@ -29,7 +29,7 @@ public record UserResponse(
                 user.getUsername(),
                 user.getEmail(),
                 user.isActive(),
-                user.getLastLogin(),
+                user.getLastLoginAt(),
                 user.getCreatedAt(),
                 roles
         );

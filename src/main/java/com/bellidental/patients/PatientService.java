@@ -1,9 +1,7 @@
 package com.bellidental.patients;
 
 import com.bellidental.persistence.entity.Patient;
-import com.bellidental.persistence.entity.User;
 import com.bellidental.persistence.repository.PatientRepository;
-import com.bellidental.persistence.repository.UserRepository;
 import com.bellidental.shared.exception.BusinessException;
 import com.bellidental.shared.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -21,7 +19,6 @@ import java.util.UUID;
 public class PatientService {
 
     private final PatientRepository patientRepository;
-    private final UserRepository userRepository;
 
     @Transactional(readOnly = true)
     public List<PatientResponse> findAll() {
@@ -49,19 +46,13 @@ public class PatientService {
                 .firstName(request.firstName())
                 .lastName(request.lastName())
                 .birthDate(request.birthDate())
-                .gender(request.gender())
+                .sex(request.sex())
                 .bloodType(request.bloodType())
-                .phone(request.phone())
+                .phoneE164(request.phoneE164())
                 .email(request.email())
-                .address(request.address())
                 .emergencyContactName(request.emergencyContactName())
-                .emergencyContactPhone(request.emergencyContactPhone());
+                .emergencyContactPhoneE164(request.emergencyContactPhoneE164());
 
-        if (request.userId() != null) {
-            User user = userRepository.findByIdAndDeletedAtIsNull(request.userId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Usuario", request.userId()));
-            builder.user(user);
-        }
 
         return PatientResponse.from(patientRepository.save(builder.build()));
     }
@@ -82,13 +73,12 @@ public class PatientService {
         if (request.firstName() != null)              patient.setFirstName(request.firstName());
         if (request.lastName() != null)               patient.setLastName(request.lastName());
         if (request.birthDate() != null)              patient.setBirthDate(request.birthDate());
-        if (request.gender() != null)                 patient.setGender(request.gender());
+        if (request.sex() != null)                    patient.setSex(request.sex());
         if (request.bloodType() != null)              patient.setBloodType(request.bloodType());
-        if (request.phone() != null)                  patient.setPhone(request.phone());
+        if (request.phoneE164() != null)              patient.setPhoneE164(request.phoneE164());
         if (request.email() != null)                  patient.setEmail(request.email());
-        if (request.address() != null)                patient.setAddress(request.address());
         if (request.emergencyContactName() != null)   patient.setEmergencyContactName(request.emergencyContactName());
-        if (request.emergencyContactPhone() != null)  patient.setEmergencyContactPhone(request.emergencyContactPhone());
+        if (request.emergencyContactPhoneE164() != null) patient.setEmergencyContactPhoneE164(request.emergencyContactPhoneE164());
         if (request.active() != null)                 patient.setActive(request.active());
 
         return PatientResponse.from(patientRepository.save(patient));
