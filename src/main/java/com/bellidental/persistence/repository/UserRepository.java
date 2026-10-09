@@ -1,6 +1,7 @@
 package com.bellidental.persistence.repository;
 
 import com.bellidental.persistence.entity.User;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
@@ -25,4 +26,10 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     List<User> findAllActive();
 
     Optional<User> findByIdAndDeletedAtIsNull(UUID id);
+
+    @EntityGraph(attributePaths = {
+            "userRoles.role",
+            "userRoles.role.rolePermissions.permission"
+    })
+    Optional<User> findWithRolesByIdAndDeletedAtIsNull(UUID id);
 }

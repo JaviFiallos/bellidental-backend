@@ -36,7 +36,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleBadCredentials(BadCredentialsException ex) {
         return ResponseEntity
                 .status(HttpStatus.UNAUTHORIZED)
-                .body(ApiResponse.error("Credenciales incorrectas."));
+                .body(ApiResponse.error("Credenciales inválidas"));
     }
 
     @ExceptionHandler(AccessDeniedException.class)

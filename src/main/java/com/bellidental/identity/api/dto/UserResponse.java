@@ -2,7 +2,7 @@ package com.bellidental.identity.api.dto;
 
 import com.bellidental.persistence.entity.User;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -14,8 +14,8 @@ public record UserResponse(
         String username,
         String email,
         boolean active,
-        LocalDateTime lastLoginAt,
-        LocalDateTime createdAt,
+        OffsetDateTime lastLoginAt,
+        OffsetDateTime createdAt,
         List<String> roles
 ) {
     /** Fábrica estática para mapear desde la entidad. */

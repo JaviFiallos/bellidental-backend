@@ -1,10 +1,12 @@
 package com.bellidental.identity.api.dto;
 
+import java.util.List;
+
 /**
- * Respuesta de autenticación exitosa — contiene el token JWT y datos básicos del usuario.
+ * Respuesta de autenticación exitosa.
  */
 public record AuthResponse(
-        String token,
-        String username,
-        String email
+        String accessToken,
+        long expiresIn,
+        List<String> roles
 ) {}

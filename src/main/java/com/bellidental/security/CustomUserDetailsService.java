@@ -3,42 +3,38 @@ package com.bellidental.security;
 import com.bellidental.persistence.entity.User;
 import com.bellidental.persistence.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
-import java.util.stream.Collectors;
-
 /**
  * Carga el usuario desde la base de datos para Spring Security.
- * Construye las GrantedAuthorities a partir de los roles asignados.
+ * Construye las GrantedAuthorities a partir de los roles asignados y sus permisos.
  */
 @Service
 @RequiredArgsConstructor
 public class CustomUserDetailsService implements UserDetailsService {
 
     private final UserRepository userRepository;
+    private final UserAuthorities userAuthorities;
 
     @Override
     @Transactional(readOnly = true)
-    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        User user = userRepository.findByUsernameAndDeletedAtIsNull(username)
-                .orElseThrow(() -> new UsernameNotFoundException(
-                        String.format("Usuario '%s' no encontrado.", username)));
+    public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
+        // Use email for authentication as requested
+        User user = userRepository.findByEmailAndDeletedAtIsNull(email)
+                .orElseThrow(() -> new UsernameNotFoundException("Credenciales inválidas"));
 
-        List<SimpleGrantedAuthority> authorities = user.getUserRoles().stream()
-                .map(userRole -> new SimpleGrantedAuthority("ROLE_" + userRole.getRole().getCode()))
-                .collect(Collectors.toList());
+        if (!user.isActive() || user.isDeleted() || user.isSystem()) {
+            throw new UsernameNotFoundException("Credenciales inválidas");
+        }
 
         return org.springframework.security.core.userdetails.User.builder()
-                .username(user.getUsername())
+                .username(user.getEmail())
                 .password(user.getPasswordHash())
-                .authorities(authorities)
-                .accountLocked(!user.isActive())
+                .authorities(userAuthorities.getAuthorities(user))
                 .build();
     }
 }
