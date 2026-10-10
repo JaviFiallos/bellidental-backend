@@ -29,4 +29,9 @@ public class ClinicalDirectoryImpl implements ClinicalDirectory {
                     return encounterService.toSummary(encounter, patientId);
                 });
     }
+
+    @Override
+    public EncounterSummary requireModifiableEncounter(UUID encounterId) {
+        return encounterService.requireModifiableEncounter(encounterId);
+    }
 }

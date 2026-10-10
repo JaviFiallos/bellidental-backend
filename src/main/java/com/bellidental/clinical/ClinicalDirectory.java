@@ -7,4 +7,6 @@ import java.util.UUID;
 public interface ClinicalDirectory {
 
     Optional<EncounterSummary> findEncounter(UUID encounterId);
+
+    EncounterSummary requireModifiableEncounter(UUID encounterId);
 }

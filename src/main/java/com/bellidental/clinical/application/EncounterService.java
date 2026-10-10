@@ -205,6 +205,18 @@ public class EncounterService {
         return toResponse(encounter, patientId, diagnoses);
     }
 
+    @Transactional(readOnly = true)
+    public EncounterSummary requireModifiableEncounter(UUID encounterId) {
+        Encounter encounter = findEncounterOrThrow(encounterId);
+        UUID professionalId = currentUser.professionalId()
+                .orElseThrow(() -> new BusinessException("El usuario actual no es un profesional"));
+
+        EncounterPolicy.checkCanModify(encounter.getProfessionalId(), professionalId, encounter.getVoidedAt() != null);
+
+        UUID patientId = getPatientId(encounter.getAppointmentId());
+        return toSummary(encounter, patientId);
+    }
+
     public EncounterSummary toSummary(Encounter encounter, UUID patientId) {
         return new EncounterSummary(
                 encounter.getId(),
