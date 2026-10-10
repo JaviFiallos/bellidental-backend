@@ -10,3 +10,6 @@ description: Reglas de código del backend Bellidental (Spring Boot). Usar al es
 - Fechas `timestamptz` ↔ `OffsetDateTime`; ids `uuid` ↔ `UUID`; catálogos `bigint` ↔ `Long`.
 - Sin `DELETE` sobre datos clínicos o pagos: se anulan con `voided_at`.
 - No crear, borrar ni mover módulos fuera del alcance de la tarea.
+- Usar `import`; nunca nombres totalmente calificados en el código (`org.springframework...`, `java.util...`),
+  salvo choque real de nombres (p. ej. `User` de Spring Security vs. la entidad).
+- Excepciones de entrada inválida: `shared/exception` (no `IllegalArgumentException` genérica hacia el handler).

@@ -214,24 +214,37 @@ Table teeth {
   tooth_type varchar(10) [not null, note: 'INCISOR, CANINE, PREMOLAR, MOLAR']
 }
 Table tooth_surfaces {
-  surface_code char(1) [pk, note: 'O, V, L, M, D']
+  surface_code char(1) [pk, note: 'O, V, L, M, D. Etiqueta por pieza en código: L = Palatina en arcada superior; O = Incisal en incisivos y caninos']
   name varchar(30) [not null]
 }
 Table dental_conditions {
   dental_condition_id bigint [pk, increment]
   code varchar(30) [not null, unique]
   name varchar(100) [not null]
-  scope varchar(8) [not null, note: 'TOOTH, SURFACE']
-  symbol varchar(20)
-  uses_grade boolean [not null, default: false]
+  category varchar(12) [not null, note: 'DENTAL, PERIODONTAL']
+  scope varchar(8) [not null, note: 'TOOTH, SURFACE, SPAN (rango de piezas de una arcada: prótesis)']
+  grade_min smallint [note: 'Ambos nulos = sin grado']
+  grade_max smallint
   cpo_component char(1)
   ceo_component char(1)
   active boolean [not null, default: true]
 }
+Table dental_condition_symbols {
+  dental_condition_symbol_id bigint [pk, increment]
+  dental_condition_id bigint [not null]
+  status varchar(8) [not null, note: 'PENDING, DONE. Solo los pares (condición, estado) con fila son válidos']
+  shape varchar(24) [not null, note: 'ASTERISK, CROSS, CIRCLE, CIRCLE_CROSS, TRIANGLE, DOUBLE_SQUARE, RECTANGLE, SQUARES_LINE, DOTS_PARENTHESES, EQUALS, NUMBER']
+  color char(7) [not null, note: '#RRGGBB']
+  secondary_color char(7) [note: 'p. ej. la X negra del círculo azul']
+  filled boolean [not null, default: false]
+  line_style varchar(6) [not null, default: 'SOLID', note: 'SOLID, DOTTED']
+  indexes { (dental_condition_id, status) [unique] }
+}
 Table dental_findings {
   dental_finding_id uuid [pk, default: `gen_random_uuid()`]
   encounter_id uuid [not null]
-  tooth_code smallint [not null]
+  tooth_code smallint [not null, note: 'En SPAN: pieza inicial']
+  end_tooth_code smallint [note: 'Solo SPAN: pieza final, misma arcada, distinta de tooth_code']
   surface_code char(1)
   dental_condition_id bigint [not null]
   status varchar(8) [not null, note: 'PENDING, DONE']
@@ -379,6 +392,8 @@ Ref: dental_findings.encounter_id > encounters.encounter_id
 Ref: dental_findings.tooth_code > teeth.tooth_code
 Ref: dental_findings.surface_code > tooth_surfaces.surface_code
 Ref: dental_findings.dental_condition_id > dental_conditions.dental_condition_id
+Ref: dental_findings.end_tooth_code > teeth.tooth_code
+Ref: dental_condition_symbols.dental_condition_id > dental_conditions.dental_condition_id
 Ref: performed_treatments.encounter_id > encounters.encounter_id
 Ref: performed_treatments.treatment_id > treatment_catalog.treatment_id
 Ref: performed_treatments.encounter_diagnosis_id > encounter_diagnoses.encounter_diagnosis_id

@@ -61,6 +61,9 @@ PCs de recepción y consultorios → navegador en la LAN
 
 ## 3. Orden de tareas y dependencias
 
+Tests: manda `.agents/skills/testing/SKILL.md` (un `*IT` de 2–3 casos por tarea con endpoints y máx. 4 unit
+tests de reglas puras). La columna `*IT` y los tests listados en §4 son orientativos: cada tarea fija los suyos.
+
 | Tarea | Módulo | Migración | Depende de | `*IT` |
 |---|---|---|---|---|
 | 001 | Esquema base identity/staff/patients | V1–V3 | — | `SchemaMigrationIT` (en correcciones) |
@@ -69,9 +72,9 @@ PCs de recepción y consultorios → navegador en la LAN
 | 004 | Pacientes y profesionales (API) | — | 003 | — |
 | 005 | Historia clínica + antecedentes | V5 | 004 | — (cubierto en 008) |
 | 006 | Agenda + horarios | V6 (incluye `professional_schedules`) | 004 | `AppointmentOverlapIT` |
-| 007 | Catálogos clínicos: CIE-10, pg_trgm | V7 parte catálogo | 005 | — |
-| 008 | Atención clínica (encounters + diagnósticos) | V7 | 006, 007 | `EncounterFlowIT` |
-| 009 | Odontograma | V8 | 008 | — |
+| 007 | Catálogos clínicos: CIE-10, pg_trgm | V7 (`V7__icd10_catalog`) | 005 | `Icd10SearchIT` |
+| 008 | Atención clínica (encounters + diagnósticos) | V7.1 (`V7_1__encounters`) | 006, 007 | `EncounterFlowIT` |
+| 009 | Odontograma | V8 | 008 | `OdontogramFlowIT` |
 | 010 | Tratamientos | V9 | 008, 009 | — |
 | 011 | Recetas + PDF | V10 | 008 | — |
 | 012 | Cobros + comprobante | V11 | 010 | — |
@@ -82,7 +85,8 @@ PCs de recepción y consultorios → navegador en la LAN
 | 017 | Bot: recordatorios | — | 016 | — |
 | 018 | Respaldos y exportación | — | todo | — |
 
-(007 y 008 pueden ir en una sola tarea si V7 se mantiene como una migración: CIE-10 + encounters.)
+(007 y 008 van separadas: CIE-10 en `V7__icd10_catalog.sql` y atención en `V7_1__encounters.sql`, para no renumerar 009+.)
+(El historial inmediato `GET /patients/{id}/clinical-summary` de §4.4 sale de la 008: va en una tarea propia después de la 011.)
 
 ---
 
@@ -225,35 +229,45 @@ IT `EncounterFlowIT`: check-in → abrir → diagnóstico → completar → cita
 la secretaria recibe 403 al abrir atención.
 
 ### 4.5 Odontograma — tarea 009 (RF02)
-Paquete `com.bellidental.odontogram`. Migración V8: `teeth` (52 piezas FDI), `tooth_surfaces`
-(O, V, L, M, D), `dental_conditions` con semilla de las filas del 033:
+Paquete `com.bellidental.odontogram`. Migración V8 (D-14): `teeth` (52 piezas FDI), `tooth_surfaces`
+(O, V, L, M, D), `dental_conditions` y `dental_condition_symbols` (simbología por condición y estado),
+con semilla según `proy-infor/otondograma-completo.txt` y las filas del 033. Detalle en `docs/tasks/009-odontograma.md`.
 
-| code | scope | uses_grade | cpo | ceo |
-|---|---|---|---|---|
-| MOBILITY | TOOTH | sí (1–3) | — | — |
-| RECESSION | TOOTH | sí (1–3) | — | — |
-| CARIES | SURFACE | — | C | c |
-| FILLING (obturación/calza) | SURFACE | — | O | o |
-| MISSING (pieza perdida) | TOOTH | — | P | — |
-| EXTRACTION (por extraer) | TOOTH | — | P (si PENDING) | e |
-| ROOT_CANAL (endodoncia) | TOOTH | — | — | — |
-| SEALANT (sellante) | SURFACE | — | — | — |
+| code | category | scope | grado | cpo | ceo | PENDING (rojo) | DONE (azul / negro) |
+|---|---|---|---|---|---|---|---|
+| MOBILITY | PERIODONTAL | TOOTH | 0–3 (Miller) | — | — | — | número |
+| RECESSION | PERIODONTAL | TOOTH | 1–4 (Miller I–IV) | — | — | — | número |
+| CARIES | DENTAL | SURFACE | — | C | c | círculo | — |
+| FILLING | DENTAL | SURFACE | — | O | o | — | círculo |
+| SEALANT | DENTAL | SURFACE | — | — | — | asterisco | asterisco |
+| EXTRACTION | DENTAL | TOOTH | — | P | e | X | — |
+| MISSING_CARIES | DENTAL | TOOTH | — | P | — | — | X |
+| MISSING_OTHER | DENTAL | TOOTH | — | — | — | — | círculo + X negra |
+| ROOT_CANAL | DENTAL | TOOTH | — | — | — | triángulo | triángulo |
+| CROWN | DENTAL | TOOTH | — | O | o | — | cuadrado doble |
+| FIXED_PROSTHESIS | DENTAL | SPAN | — | — | — | — | línea punteada con cuadrados (negro) |
+| REMOVABLE_PROSTHESIS | DENTAL | SPAN | — | — | — | — | (···) (negro) |
+| TOTAL_PROSTHESIS | DENTAL | SPAN | — | — | — | — | = (negro) |
+| OTHER | DENTAL | TOOTH | — | — | — | rectángulo relleno | rectángulo relleno |
 
-(Revisar la tabla con la odontóloga; caries simple/compuesta/compleja = 1, 2, 3+ caras con CARIES,
-calculado, no condiciones distintas.)
+(Revisar con la odontóloga: CPO de CROWN y si corona/prótesis "por hacer" se marcan con OTHER rojo.
+Caries simple/compuesta/compleja = 1, 2, 3+ caras con CARIES vigente, calculado.)
 
 Reglas:
-- Solo ODONTOLOGO, en atención OPEN. Condición SURFACE exige cara; TOOTH la prohíbe. `grade` solo si
-  `uses_grade`. Piezas temporales (51–85) permitidas.
-- `status`: PENDING (rojo) / DONE (azul).
-- **Estado vigente (O3)**: último hallazgo no anulado por (pieza, cara) en SURFACE y por (pieza,
-  condición) en TOOTH, entre todas las atenciones no anuladas del paciente.
-- CPO/ceo calculado del estado vigente: C=cariados, P=perdidos o extracción indicada, O=obturados;
-  cada pieza cuenta una vez por componente.
+- Solo el odontólogo que atendió, en atención no anulada: `OPEN`, o `COMPLETED` para corregir (anular el
+  hallazgo y registrar el correcto en la misma atención, D-6). Regla única en
+  `ClinicalDirectory.requireModifiableEncounter`, que reusan 009, 010 y 011. SURFACE exige cara; TOOTH y SPAN la prohíben; SPAN exige
+  `end_tooth_code` de la misma arcada. Grado obligatorio y en rango si la condición lo define; prohibido si no.
+  El par (condición, estado) debe tener símbolo. OTHER exige `notes`. Piezas temporales (51–85) permitidas.
+- **Estado vigente (O3)**: último hallazgo no anulado, de atenciones no anuladas, por (pieza, cara) en
+  SURFACE, por (pieza, condición) en TOOTH y por (pieza, pieza final, condición) en SPAN. Una pieza con
+  MISSING_* vigente oculta sus demás hallazgos de pieza y cara (no los SPAN).
+- CPO/ceo del estado vigente; cada pieza cuenta una vez por componente.
+- Etiqueta de cara por pieza: L = Palatina en arcada superior, Lingual en inferior; O = Incisal en
+  incisivos y caninos. Mesial/distal se dibujan según cuadrante (frontend).
 
-Endpoints: `GET /patients/{id}/odontogram` (vigente + CPO/ceo), `GET /encounters/{id}/findings`,
-`POST /encounters/{id}/findings`, `POST /findings/{id}/void`.
-Unit: estado vigente, CPO/ceo, validaciones de cara/grado.
+Endpoints: `GET /odontogram/catalog` (piezas, caras, condiciones con símbolos), `GET /patients/{id}/odontogram`
+(vigente + CPO/ceo), `GET /encounters/{id}/findings`, `POST /encounters/{id}/findings`, `POST /findings/{id}/void`.
 
 ### 4.6 Tratamientos — tarea 010 (RF04)
 Paquete `com.bellidental.treatments`. Migración V9: `treatment_catalog` con semilla (códigos de su
@@ -414,6 +428,22 @@ Unit (todo el bot): máquina de pasos, identificación por teléfono, derivació
 - Doc `docs/OPERATIONS.md`: instalar, respaldar, restaurar, exportar, rotar el secreto JWT.
 Unit: escritor CSV (escapes, UTF-8, cabeceras).
 
+### 4.13 Cuentas de acceso para profesionales — **posterior al MVP** (D-13)
+Hoy no existe alta de usuarios por API (`/auth/register` se cerró en la tarea 003; `UserController` solo lista,
+edita y hace borrado lógico, para ADMIN). Mientras no se implemente, **una cuenta nueva se crea con una
+migración Flyway** como las de la semilla (V-siguiente, UUID fijo, rol ODONTOLOGO, contraseña temporal en BCrypt).
+
+Endpoints estipulados para cuando se implemente:
+| Método y ruta | Permiso | Cuerpo | Efecto |
+|---|---|---|---|
+| `POST /api/v1/professionals/{id}/access` | ADMIN (`PROFESSIONAL_MANAGE`) | `{email, temporaryPassword}` | Crea `users` (username = parte local del email), rol ODONTOLOGO, enlaza `professionals.user_id`. 409 si el email existe o el profesional ya tiene cuenta |
+| `POST /api/v1/users/{id}/reset-password` | ADMIN | `{temporaryPassword}` | Reemplaza el hash; no revela la contraseña anterior |
+| `PUT /api/v1/auth/password` | autenticado | `{currentPassword, newPassword}` | Cambia la propia contraseña (mín. 10 caracteres); 401 si la actual no coincide |
+| `POST /api/v1/users/{id}/deactivate` | ADMIN | — | `active=false`; reemplaza al `DELETE /users/{id}` actual |
+
+Reglas: no se crean ADMIN ni SECRETARIA por API (siguen fijos por semilla); nunca se registran contraseñas en logs;
+forzar el cambio de la contraseña temporal requeriría una columna `must_change_password` (cambio de esquema, decidir entonces).
+
 ---
 
 ## 5. Matriz rol × módulo
@@ -448,8 +478,11 @@ quitar RECORD_* de ADMIN en la semilla (hoy ADMIN = todos).
 | D-10 | Cancelar o reprogramar por bot hasta 2 h antes | §4.11 |
 | D-11 | `postgres:16` también en `docker-compose` de despliegue | §4.12 |
 | D-12 | La secretaria registra los horarios: permiso `SCHEDULE_MANAGE` para ADMIN y SECRETARIA | tarea 002, §4.3 |
+| D-13 | Alta de cuentas para profesionales: posterior al MVP; endpoints estipulados; mientras tanto, por migración | §4.13 |
+| D-14 | Odontograma completo: simbología en `dental_condition_symbols`, alcance SPAN para prótesis, categoría periodontal y rango de grado | `schema.dbml`, §4.5 |
 
 **Pendientes:**
 | ID | Decisión | Propuesta | Afecta |
 |---|---|---|---|
 | D-5b | Confirmar con la clínica si el N° de HC es la cédula | — | 005 |
+| D-14b | Odontóloga: ¿CROWN cuenta como O en CPO? ¿Corona/prótesis por hacer = OTHER rojo? | CROWN = O/o; OTHER rojo | 009 |

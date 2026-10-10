@@ -7,11 +7,14 @@
   (cada tarea se redacta desde su §4.x; no releer `proy-infor/`).
 
 ## Ciclo
-1. Claude crea `docs/tasks/NNN-nombre.md` (una tarea = un módulo), con sus tests.
-   Integración (`*IT`) solo en módulos críticos (esquema/semillas, auth, citas, atención clínica) y con pocos casos;
-   los demás módulos solo llevan unit tests de su lógica de negocio.
+1. Claude crea `docs/tasks/NNN-nombre.md` (una tarea = un módulo), con sus tests. Antes de redactarla, Claude
+   define la estructura del módulo según `architecture/SKILL.md`: qué subpaquetes usa, qué expone en su
+   `Directory` y de qué `Directory` de otros módulos depende. En `## Archivos a tocar` la escribe como árbol de paquetes.
+   Tests mínimos según `testing/SKILL.md`: un `*IT` por tarea con endpoints (flujo principal + el fallo clave,
+   2–3 casos) y unit tests solo para reglas puras críticas de `domain/` (máx. 4 casos). Nada más.
 2. Ejecutar: `gemini -p "Ejecuta docs/tasks/NNN-nombre.md siguiendo GEMINI.md."`
-3. Claude revisa la sección Resultado y `git diff --stat` (y los archivos críticos si hace falta).
+3. Claude revisa la sección Resultado y `git diff --stat` (y los archivos críticos si hace falta); corre
+   `./mvnw -q clean verify` una vez y lee solo los totales de los reports.
 4. Claude escribe `## Revisión`:
    - No cumple → `Estado: CORRECCIONES` + lista numerada → volver al paso 2.
    - Cumple → `Estado: APROBADO`.
@@ -22,5 +25,5 @@
 `## Objetivo` · `## Archivos a tocar` · `## Criterios de aceptación` · `## Tests requeridos` (Unit / Integration) ·
 `## Resultado` (lo llena Gemini) · `## Revisión` (lo llena Claude)
 
-Reglas: @.agents/skills/clean-code/SKILL.md · @.agents/skills/testing/SKILL.md
+Reglas: @.agents/skills/architecture/SKILL.md · @.agents/skills/clean-code/SKILL.md · @.agents/skills/testing/SKILL.md
 Ahorrar tokens: mensajes breves, no leer código innecesario, confiar en el Resultado.

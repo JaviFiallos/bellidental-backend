@@ -162,7 +162,7 @@ Detalle técnico en `IMPLEMENTATION-PLAN.md §1`.
 | Medicación actual (entrevista) | `clinical_records.current_medication` | |
 | 4 Signos vitales | `encounters.bp_systolic/diastolic, heart_rate, temperature, respiratory_rate` | |
 | 5 Examen estomatognático | `encounters.stomatognathic_exam` | Texto libre como en su ficha |
-| 6 Odontograma | `teeth`, `tooth_surfaces`, `dental_conditions`, `dental_findings` | Rojo=`PENDING`, azul=`DONE`; movilidad/recesión con `grade` |
+| 6 Odontograma | `teeth`, `tooth_surfaces`, `dental_conditions`, `dental_condition_symbols`, `dental_findings` | Rojo=`PENDING`, azul=`DONE` (símbolo por condición y estado); prótesis con alcance SPAN; movilidad (0–3) y recesión (I–IV) como `PERIODONTAL` con `grade` |
 | 7 Indicadores (periodontal, maloclusión, fluorosis) | `encounters.periodontal_disease / malocclusion / fluorosis` | LEVE/MODERADA/SEVERA; ANGLE_I/II/III |
 | 8 Índices CPO / ceo | Calculados de `dental_findings` vía `cpo_component` / `ceo_component` | No se guardan |
 | 10 Planes (Dx, terapéutico, educacional) | `encounters.diagnostic_plan / therapeutic_plan / educational_plan` | Biometría/química/RX van como texto en `diagnostic_plan` |
@@ -203,7 +203,7 @@ El esquema es sólido. Lo siguiente falta o necesita una regla; ordenado por imp
 |---|---|---|---|
 | O1 | **No hay horario de trabajo por profesional.** El bot (agendar/reprogramar) y la recepción necesitan saber qué días y horas atiende cada uno (la endodoncista solo martes). | Bloquea RF12 y RF15 | **Aprobado (D-1)**: `professional_schedules` en V6, semanal y por fecha |
 | O2 | **Reprogramar desde el recordatorio**: `appointment_reminders.response` solo admite CONFIRMED/CANCELLED. | RF13 + RF15 | **Aprobado (D-2)**: ya en `schema.dbml` |
-| O3 | **Estado actual del odontograma**: los hallazgos son por atención; no hay regla para saber si una caries roja ya se resolvió. | RF02, RF06 | Regla en código: estado vigente = último hallazgo no anulado por (pieza, cara) para alcance SURFACE y por (pieza, condición) para TOOTH. Sin cambio de esquema |
+| O3 | **Estado actual del odontograma**: los hallazgos son por atención; no hay regla para saber si una caries roja ya se resolvió. | RF02, RF06 | Regla en código: estado vigente = último hallazgo no anulado por (pieza, cara) en SURFACE, (pieza, condición) en TOOTH y (pieza, pieza final, condición) en SPAN; MISSING_* oculta lo demás de la pieza (D-14) |
 | O4 | **Walk-in vs EXCLUDE**: una cita `WALK_IN` que se cruce con otra del mismo profesional será rechazada por la BD. | Recepción | Walk-in exige hueco libre; si no hay, se asigna a otro profesional o se espera. Sin cambio de esquema |
 | O5 | `no_known_history` es un solo booleano; el 033 distingue "no refiere personales" de "no refiere familiares". | Impresión 033 (fuera) | Derivable: sin entradas PERSONAL activas → "no refiere personales". Sin cambio |
 | O6 | En Ecuador el N° de HCU suele ser la cédula. | Formato | Provisional `HC-000001` (D-5); confirmar con la clínica |
