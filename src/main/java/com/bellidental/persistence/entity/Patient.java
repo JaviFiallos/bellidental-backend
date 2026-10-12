@@ -47,7 +47,7 @@ public class Patient {
     private String sex;
 
     /** Tipo de sangre — relevante en procedimientos quirúrgicos. */
-    @Enumerated(EnumType.STRING)
+    @Convert(converter = BloodTypeConverter.class)
     @Column(name = "blood_type", length = 3)
     private BloodType bloodType;
 

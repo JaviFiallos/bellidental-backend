@@ -70,6 +70,7 @@ tests de reglas puras). La columna `*IT` y los tests listados en §4 son orienta
 | 002 | Semillas base | V4 | 001 | `BaseSeedIT` |
 | 003 | Auth email + JWT | — | 002 | `AuthControllerIT` |
 | 004 | Pacientes y profesionales (API) | — | 003 | — |
+| 004a | Tipo de sangre como etiqueta (bug 500 en alta) | — | 004 | PatientBloodTypeIT |
 | 005 | Historia clínica + antecedentes | V5 | 004 | — (cubierto en 008) |
 | 005b | Historia clínica con ApiResponse (G-9 del frontend) | — | 005 | `ClinicalRecordApiIT` |
 | 006 | Agenda + horarios | V6 (incluye `professional_schedules`) | 004 | `AppointmentOverlapIT` |

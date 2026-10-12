@@ -22,4 +22,18 @@ public enum BloodType {
     public String getLabel() {
         return label;
     }
+
+    /**
+     * Busca el tipo de sangre por su etiqueta clínica (p. ej. "AB-").
+     *
+     * @throws IllegalArgumentException si ninguna etiqueta coincide
+     */
+    public static BloodType fromLabel(String label) {
+        for (BloodType bloodType : values()) {
+            if (bloodType.label.equals(label)) {
+                return bloodType;
+            }
+        }
+        throw new IllegalArgumentException("Etiqueta de tipo de sangre no válida: " + label);
+    }
 }
