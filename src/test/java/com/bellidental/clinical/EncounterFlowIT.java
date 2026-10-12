@@ -73,7 +73,7 @@ class EncounterFlowIT {
         String randomSuffix = UUID.randomUUID().toString().substring(0, 5);
         CreatePatientRequest patientRequest = new CreatePatientRequest(
                 DocumentType.PASAPORTE, "B88100" + randomSuffix, "Test", "Encounter",
-                LocalDate.of(1990, 1, 1), "F", null, "0999999998", null, null, null
+                LocalDate.of(1990, 1, 1), "F", null, "0999999998", null, null, null, null
         );
         ResponseEntity<ApiResponse<PatientSummary>> patientResponse = restTemplate.exchange(
                 "/api/v1/patients",

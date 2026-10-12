@@ -79,7 +79,7 @@ class AppointmentOverlapIT {
         String randomSuffix = UUID.randomUUID().toString().substring(0, 5);
         CreatePatientRequest patientReq = new CreatePatientRequest(
                 DocumentType.PASAPORTE, "A17100" + randomSuffix, "Test", "Patient",
-                LocalDate.of(1990, 1, 1), "M", null, "0999999999", null, null, null
+                LocalDate.of(1990, 1, 1), "M", null, "0999999999", null, null, null, null
         );
         ResponseEntity<ApiResponse<PatientSummary>> patientResp = restTemplate.exchange(
                 "/api/v1/patients",

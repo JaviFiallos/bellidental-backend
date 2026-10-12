@@ -52,5 +52,8 @@ public record CreatePatientRequest(
         String emergencyContactName,
 
         @Size(max = 15)
-        String emergencyContactPhoneE164
+        String emergencyContactPhoneE164,
+
+        @Size(max = 1000)
+        String adminNotes
 ) {}

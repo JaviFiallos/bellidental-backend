@@ -73,6 +73,7 @@ tests de reglas puras). La columna `*IT` y los tests listados en §4 son orienta
 | 005 | Historia clínica + antecedentes | V5 | 004 | — (cubierto en 008) |
 | 006 | Agenda + horarios | V6 (incluye `professional_schedules`) | 004 | `AppointmentOverlapIT` |
 | 006c | Horarios con `ApiResponse` (G-8 del frontend) | — | 006 | `ScheduleApiIT` |
+| 006d | Citas por paciente y adminNotes (G-4, G-5 del frontend) | — | 004, 006 | `PatientRecordApiIT` |
 | 007 | Catálogos clínicos: CIE-10, pg_trgm | V7 (`V7__icd10_catalog`) | 005 | `Icd10SearchIT` |
 | 008 | Atención clínica (encounters + diagnósticos) | V7.1 (`V7_1__encounters`) | 006, 007 | `EncounterFlowIT` |
 | 009 | Odontograma | V8 | 008 | `OdontogramFlowIT` |
@@ -99,11 +100,11 @@ Los módulos ya existen; se ajustan y se exponen solo estas operaciones.
 **Pacientes** (`com.bellidental.patients`)
 - `POST /patients` (PATIENT_CREATE): cédula, nombres, fecha de nacimiento, sexo obligatorios; teléfono
   normalizado a E.164 sin "+" (`0987654321` → `593987654321`). Cédula ecuatoriana validada (dígito
-  verificador) cuando `document_type = CI`.
-- `PUT /patients/{id}` (PATIENT_UPDATE). `admin_notes` editable por recepción.
+  verificador) cuando `document_type = CI`. `admin_notes` opcional (máx 1000 caracteres, recortado).
+- `PUT /patients/{id}` (PATIENT_UPDATE). `admin_notes` editable por recepción (máx 1000 caracteres, trim; vacío borra la nota).
 - `GET /patients?query=` (PATIENT_READ): por cédula exacta, prefijo de teléfono o nombre (ILIKE ahora;
   trigram cuando exista el índice de V7).
-- `GET /patients/{id}`: identificación + edad calculada. Nunca datos clínicos.
+- `GET /patients/{id}`: identificación + edad calculada + `adminNotes`. Nunca datos clínicos.
 - Interfaz pública `PatientDirectory` (buscar por id, por teléfono, por documento) para agenda, bot y cobros.
 - Desactivar = `active=false`; no hay borrado.
 
@@ -146,8 +147,9 @@ Paquete `com.bellidental.appointments`. Migración V6: `appointments` con CHECK 
 - Horario efectivo de un día = filas por fecha si existen; si no, las semanales; menos los turnos con
   `available=false`.
 - No se permiten turnos solapados del mismo profesional el mismo día (validación en el servicio).
-- Endpoints: `GET /professionals/{id}/schedules?from&to` (horario efectivo por día),
-  `POST/PUT /professionals/{id}/schedules`, `POST /schedules/{id}/deactivate`.
+- Endpoints: `GET /professionals/{id}/schedules` (turnos registrados),
+  `GET /professionals/{id}/schedules/effective?from&to` (horario efectivo por día: `{date, shifts:[{startTime, endTime}]}`),
+  `POST /professionals/{id}/schedules`, `PUT /schedules/{id}`, `POST /schedules/{id}/deactivate`.
   Todos responden con `ApiResponse` (tarea 006c; antes devolvían el DTO sin envoltorio).
   Permiso: SCHEDULE_MANAGE (ADMIN y SECRETARIA; D-12). La secretaria registra días y horas de cada profesional.
 
@@ -183,9 +185,15 @@ PENDING ──confirmar──▶ CONFIRMED
 - Disponibilidad: `GET /availability?professionalId&specialtyId&date` → huecos libres (horario − citas
   activas), en pasos de la duración de la especialidad. La usan recepción y bot.
 
-Endpoints: `GET /appointments?professionalId&from&to` (vista calendario con color),
+Endpoints: `GET /appointments` (`?from&to`, `?professionalId&from&to`, `?patientId` o `?patientId&from&to`),
 `POST /appointments`, `POST /{id}/confirm|cancel|check-in|no-show|reschedule`, `POST /walk-in`,
 `GET /availability`.
+Filtros de `GET /appointments` (tarea 006d, para la ficha de recepción del paciente):
+- Sin `patientId`: `from` y `to` obligatorios (400 "Indica 'from' y 'to'."), `to > from`, máx. 31 días.
+- `?patientId` sin rango: todas las citas del paciente, de todos los estados, por `startAt` ascendente;
+  paciente sin citas o inexistente → `200` con `data: []`.
+- `?patientId&from&to`: paciente y rango, con las mismas validaciones. Solo uno de `from`/`to` → 400.
+- `patientId` con `professionalId` → 400 (ninguna pantalla lo usa).
 
 Unit: transiciones válidas/inválidas, cálculo de `end_at`, horario efectivo (semanal, por fecha,
 `available=false`), cálculo de huecos, reprogramar.

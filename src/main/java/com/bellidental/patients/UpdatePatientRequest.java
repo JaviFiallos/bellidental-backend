@@ -44,5 +44,6 @@ public record UpdatePatientRequest(
         @Size(max = 15)
         String emergencyContactPhoneE164,
 
+        @Size(max = 1000)
         String adminNotes
 ) {}

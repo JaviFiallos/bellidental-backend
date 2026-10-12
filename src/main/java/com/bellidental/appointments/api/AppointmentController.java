@@ -81,9 +81,10 @@ public class AppointmentController {
     @PreAuthorize("hasAuthority('APPOINTMENT_READ')")
     public ResponseEntity<ApiResponse<List<AppointmentResponse>>> getAppointments(
             @RequestParam(required = false) UUID professionalId,
-            @RequestParam OffsetDateTime from,
-            @RequestParam OffsetDateTime to) {
-        return ResponseEntity.ok(ApiResponse.ok(appointmentService.getAppointments(professionalId, from, to)));
+            @RequestParam(required = false) UUID patientId,
+            @RequestParam(required = false) OffsetDateTime from,
+            @RequestParam(required = false) OffsetDateTime to) {
+        return ResponseEntity.ok(ApiResponse.ok(appointmentService.getAppointments(professionalId, patientId, from, to)));
     }
 
     @GetMapping("/{id}")

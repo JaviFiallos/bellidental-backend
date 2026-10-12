@@ -30,6 +30,7 @@ public record PatientResponse(
         String email,
         String emergencyContactName,
         String emergencyContactPhoneE164,
+        String adminNotes,
         boolean active,
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt
@@ -56,6 +57,7 @@ public record PatientResponse(
                 p.getEmail(),
                 p.getEmergencyContactName(),
                 p.getEmergencyContactPhoneE164(),
+                p.getAdminNotes(),
                 p.isActive(),
                 p.getCreatedAt(),
                 p.getUpdatedAt()

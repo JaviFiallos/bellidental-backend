@@ -15,10 +15,14 @@ import java.util.UUID;
 
 @Repository
 public interface AppointmentRepository extends JpaRepository<Appointment, UUID> {
-    
+
     List<Appointment> findByStartAtGreaterThanEqualAndStartAtLessThanOrderByStartAtAsc(OffsetDateTime from, OffsetDateTime to);
-    
+
     List<Appointment> findByProfessionalIdAndStartAtGreaterThanEqualAndStartAtLessThanOrderByStartAtAsc(UUID professionalId, OffsetDateTime from, OffsetDateTime to);
+
+    List<Appointment> findByPatientIdOrderByStartAtAsc(UUID patientId);
+
+    List<Appointment> findByPatientIdAndStartAtGreaterThanEqualAndStartAtLessThanOrderByStartAtAsc(UUID patientId, OffsetDateTime from, OffsetDateTime to);
 
     @Query("SELECT a FROM Appointment a WHERE a.professionalId = :professionalId AND a.status IN :activeStatuses " +
             "AND a.startAt < :to AND a.endAt > :from ORDER BY a.startAt ASC")

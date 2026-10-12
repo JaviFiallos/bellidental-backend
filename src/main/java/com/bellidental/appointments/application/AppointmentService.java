@@ -276,37 +276,60 @@ public class AppointmentService {
     }
 
     @Transactional(readOnly = true)
-    public List<AppointmentResponse> getAppointments(UUID professionalId, OffsetDateTime from, OffsetDateTime to) {
-        if (to.isBefore(from) || to.equals(from)) {
-            throw new InvalidInputException("La fecha 'to' debe ser posterior a 'from'.");
-        }
-        if (ChronoUnit.DAYS.between(from, to) > 31) {
-            throw new InvalidInputException("El rango no puede ser mayor a 31 días.");
+    public List<AppointmentResponse> getAppointments(UUID professionalId, UUID patientId, OffsetDateTime from, OffsetDateTime to) {
+        if (patientId != null && professionalId != null) {
+            throw new InvalidInputException("Filtra por paciente o por profesional, no por ambos.");
         }
 
         List<Appointment> appointments;
-        if (professionalId != null) {
-            appointments = appointmentRepository.findByProfessionalIdAndStartAtGreaterThanEqualAndStartAtLessThanOrderByStartAtAsc(professionalId, from, to);
+        if (patientId != null) {
+            if ((from == null && to != null) || (from != null && to == null)) {
+                throw new InvalidInputException("Indica 'from' y 'to' juntos.");
+            }
+            if (from == null && to == null) {
+                appointments = appointmentRepository.findByPatientIdOrderByStartAtAsc(patientId);
+            } else {
+                validateRange(from, to);
+                appointments = appointmentRepository.findByPatientIdAndStartAtGreaterThanEqualAndStartAtLessThanOrderByStartAtAsc(patientId, from, to);
+            }
         } else {
-            appointments = appointmentRepository.findByStartAtGreaterThanEqualAndStartAtLessThanOrderByStartAtAsc(from, to);
+            if (from == null || to == null) {
+                throw new InvalidInputException("Indica 'from' y 'to'.");
+            }
+            validateRange(from, to);
+            if (professionalId != null) {
+                appointments = appointmentRepository.findByProfessionalIdAndStartAtGreaterThanEqualAndStartAtLessThanOrderByStartAtAsc(professionalId, from, to);
+            } else {
+                appointments = appointmentRepository.findByStartAtGreaterThanEqualAndStartAtLessThanOrderByStartAtAsc(from, to);
+            }
         }
 
         List<UUID> patientIds = appointments.stream().map(Appointment::getPatientId).distinct().toList();
         Map<UUID, String> patientNames = patientDirectory.findByIds(patientIds).stream()
                 .collect(Collectors.toMap(PatientSummary::id, this::fullName));
 
-        Map<UUID, ProfessionalSummary> activeProfessionals = professionalDirectory.findActive().stream()
-                .collect(Collectors.toMap(ProfessionalSummary::id, Function.identity()));
+        Map<UUID, ProfessionalSummary> professionals = professionalDirectory.findActive().stream()
+                .collect(Collectors.toMap(ProfessionalSummary::id, Function.identity(), (a, b) -> a, HashMap::new));
 
         Map<Long, String> specialtyNames = new HashMap<>();
 
         return appointments.stream().map(appointment -> {
             String patientName = patientNames.getOrDefault(appointment.getPatientId(), "Desconocido");
-            ProfessionalSummary professional = activeProfessionals.get(appointment.getProfessionalId());
+            ProfessionalSummary professional = professionals.computeIfAbsent(appointment.getProfessionalId(), id ->
+                    professionalDirectory.findById(id).orElse(null));
             String specialtyName = specialtyNames.computeIfAbsent(appointment.getSpecialtyId(), id ->
                     professionalDirectory.findSpecialty(id).map(SpecialtySummary::name).orElse("Desconocido"));
             return toResponse(appointment, patientName, professional, specialtyName);
         }).toList();
+    }
+
+    private void validateRange(OffsetDateTime from, OffsetDateTime to) {
+        if (to.isBefore(from) || to.equals(from)) {
+            throw new InvalidInputException("La fecha 'to' debe ser posterior a 'from'.");
+        }
+        if (ChronoUnit.DAYS.between(from, to) > 31) {
+            throw new InvalidInputException("El rango no puede ser mayor a 31 días.");
+        }
     }
 
     @Transactional(readOnly = true)

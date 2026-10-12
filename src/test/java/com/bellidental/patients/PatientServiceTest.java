@@ -46,7 +46,7 @@ class PatientServiceTest {
 
     @Test
     void create_duplicateDocument_throwsBusinessException() {
-        CreatePatientRequest req = new CreatePatientRequest(DocumentType.CI, "1710034065", "Juan", "Perez", LocalDate.now(), "M", null, "0987654321", null, null, null);
+        CreatePatientRequest req = new CreatePatientRequest(DocumentType.CI, "1710034065", "Juan", "Perez", LocalDate.now(), "M", null, "0987654321", null, null, null, null);
         when(patientRepository.existsByDocumentTypeAndDocumentNumber(DocumentType.CI, "1710034065")).thenReturn(true);
 
         assertThatThrownBy(() -> patientService.create(req))

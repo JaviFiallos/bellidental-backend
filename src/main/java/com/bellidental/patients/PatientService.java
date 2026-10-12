@@ -89,7 +89,8 @@ public class PatientService {
                 .phoneE164(phoneE164)
                 .email(request.email())
                 .emergencyContactName(request.emergencyContactName())
-                .emergencyContactPhoneE164(emergencyPhoneE164);
+                .emergencyContactPhoneE164(emergencyPhoneE164)
+                .adminNotes(normalizeNotes(request.adminNotes()));
 
         return PatientResponse.from(patientRepository.save(builder.build()), getZone());
     }
@@ -119,9 +120,17 @@ public class PatientService {
         if (request.email() != null)                  patient.setEmail(request.email());
         if (request.emergencyContactName() != null)   patient.setEmergencyContactName(request.emergencyContactName());
         if (request.emergencyContactPhoneE164() != null) patient.setEmergencyContactPhoneE164(PhoneNumberNormalizer.normalize(request.emergencyContactPhoneE164()));
-        if (request.adminNotes() != null)             patient.setAdminNotes(request.adminNotes());
+        if (request.adminNotes() != null)             patient.setAdminNotes(normalizeNotes(request.adminNotes()));
 
         return PatientResponse.from(patientRepository.save(patient), getZone());
+    }
+
+    private String normalizeNotes(String notes) {
+        if (notes == null) {
+            return null;
+        }
+        String trimmed = notes.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 
     @Transactional
