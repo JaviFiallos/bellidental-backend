@@ -74,6 +74,7 @@ tests de reglas puras). La columna `*IT` y los tests listados en §4 son orienta
 | 006 | Agenda + horarios | V6 (incluye `professional_schedules`) | 004 | `AppointmentOverlapIT` |
 | 006c | Horarios con `ApiResponse` (G-8 del frontend) | — | 006 | `ScheduleApiIT` |
 | 006d | Citas por paciente y adminNotes (G-4, G-5 del frontend) | — | 004, 006 | `PatientRecordApiIT` |
+| 006e | La cita trae su atención (G-1 del frontend) | — | 006, 008 | `AppointmentEncounterLinkIT` |
 | 007 | Catálogos clínicos: CIE-10, pg_trgm | V7 (`V7__icd10_catalog`) | 005 | `Icd10SearchIT` |
 | 008 | Atención clínica (encounters + diagnósticos) | V7.1 (`V7_1__encounters`) | 006, 007 | `EncounterFlowIT` |
 | 009 | Odontograma | V8 | 008 | `OdontogramFlowIT` |
@@ -194,6 +195,7 @@ Filtros de `GET /appointments` (tarea 006d, para la ficha de recepción del paci
   paciente sin citas o inexistente → `200` con `data: []`.
 - `?patientId&from&to`: paciente y rango, con las mismas validaciones. Solo uno de `from`/`to` → 400.
 - `patientId` con `professionalId` → 400 (ninguna pantalla lo usa).
+Atención vinculada en `AppointmentResponse` (tarea 006e, para "Mis citas de hoy"): `encounterId` (`uuid` o `null`), `encounterStatus` (`OPEN`/`COMPLETED` o `null`) y `encounterVoided` (`boolean`, si `voided_at != null`). Sin atención (recién creada o reprogramada): `null`, `null`, `false`. Con atención: datos de `encounters` vía `EncounterRepository` (lectura en lote, sin N+1, D-15).
 
 Unit: transiciones válidas/inválidas, cálculo de `end_at`, horario efectivo (semanal, por fecha,
 `available=false`), cálculo de huecos, reprogramar.
@@ -490,6 +492,7 @@ quitar RECORD_* de ADMIN en la semilla (hoy ADMIN = todos).
 | D-12 | La secretaria registra los horarios: permiso `SCHEDULE_MANAGE` para ADMIN y SECRETARIA | tarea 002, §4.3 |
 | D-13 | Alta de cuentas para profesionales: posterior al MVP; endpoints estipulados; mientras tanto, por migración | §4.13 |
 | D-14 | Odontograma completo: simbología en `dental_condition_symbols`, alcance SPAN para prótesis, categoría periodontal y rango de grado | `schema.dbml`, §4.5 |
+| D-15 | appointments lee el vínculo cita→atención con EncounterRepository (solo lectura) para evitar el ciclo con clinical | §4.3 |
 
 **Pendientes:**
 | ID | Decisión | Propuesta | Afecta |

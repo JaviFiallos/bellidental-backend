@@ -2,6 +2,7 @@ package com.bellidental.appointments.api.dto;
 
 import com.bellidental.shared.enums.AppointmentSource;
 import com.bellidental.shared.enums.AppointmentStatus;
+import com.bellidental.shared.enums.EncounterStatus;
 
 import java.time.OffsetDateTime;
 import java.util.UUID;
@@ -22,6 +23,9 @@ public record AppointmentResponse(
     String reason,
     String notes,
     OffsetDateTime checkedInAt,
-    UUID rescheduledFromId
+    UUID rescheduledFromId,
+    UUID encounterId,
+    EncounterStatus encounterStatus,
+    boolean encounterVoided
 ) {
 }

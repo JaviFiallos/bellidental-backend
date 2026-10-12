@@ -16,8 +16,10 @@ import com.bellidental.appointments.domain.WalkInSlotFinder;
 import com.bellidental.patients.PatientDirectory;
 import com.bellidental.patients.PatientSummary;
 import com.bellidental.persistence.entity.Appointment;
+import com.bellidental.persistence.entity.Encounter;
 import com.bellidental.persistence.entity.ProfessionalSchedule;
 import com.bellidental.persistence.repository.AppointmentRepository;
+import com.bellidental.persistence.repository.EncounterRepository;
 import com.bellidental.persistence.repository.ProfessionalScheduleRepository;
 import com.bellidental.professionals.ProfessionalDirectory;
 import com.bellidental.professionals.ProfessionalSummary;
@@ -25,6 +27,7 @@ import com.bellidental.professionals.SpecialtySummary;
 import com.bellidental.security.CurrentUser;
 import com.bellidental.shared.enums.AppointmentSource;
 import com.bellidental.shared.enums.AppointmentStatus;
+import com.bellidental.shared.enums.EncounterStatus;
 import com.bellidental.shared.exception.BusinessException;
 import com.bellidental.shared.exception.InvalidInputException;
 import com.bellidental.shared.exception.ResourceNotFoundException;
@@ -40,6 +43,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -55,6 +59,7 @@ public class AppointmentService {
 
     private final AppointmentRepository appointmentRepository;
     private final ProfessionalScheduleRepository scheduleRepository;
+    private final EncounterRepository encounterRepository;
     private final PatientDirectory patientDirectory;
     private final ProfessionalDirectory professionalDirectory;
     private final AvailabilityService availabilityService;
@@ -166,7 +171,7 @@ public class AppointmentService {
         eventPublisher.publishEvent(new AppointmentEvent(saved.getId(), eventType, previousId));
 
         ProfessionalSummary professional = professionalDirectory.findById(saved.getProfessionalId()).orElse(null);
-        return toResponse(saved, fullName(patient), professional, specialty.name());
+        return toResponse(saved, fullName(patient), professional, specialty.name(), null);
     }
 
     private Appointment saveOrTranslateOverlap(Appointment appointment) {
@@ -313,13 +318,20 @@ public class AppointmentService {
 
         Map<Long, String> specialtyNames = new HashMap<>();
 
+        List<UUID> appointmentIds = appointments.stream().map(Appointment::getId).toList();
+        Map<UUID, Encounter> encounters = appointmentIds.isEmpty()
+                ? Collections.emptyMap()
+                : encounterRepository.findByAppointmentIdIn(appointmentIds).stream()
+                        .collect(Collectors.toMap(Encounter::getAppointmentId, Function.identity(), (a, b) -> a));
+
         return appointments.stream().map(appointment -> {
             String patientName = patientNames.getOrDefault(appointment.getPatientId(), "Desconocido");
             ProfessionalSummary professional = professionals.computeIfAbsent(appointment.getProfessionalId(), id ->
                     professionalDirectory.findById(id).orElse(null));
             String specialtyName = specialtyNames.computeIfAbsent(appointment.getSpecialtyId(), id ->
                     professionalDirectory.findSpecialty(id).map(SpecialtySummary::name).orElse("Desconocido"));
-            return toResponse(appointment, patientName, professional, specialtyName);
+            Encounter encounter = encounters.get(appointment.getId());
+            return toResponse(appointment, patientName, professional, specialtyName, encounter);
         }).toList();
     }
 
@@ -340,8 +352,9 @@ public class AppointmentService {
         ProfessionalSummary professional = professionalDirectory.findById(appointment.getProfessionalId()).orElse(null);
         String specialtyName = professionalDirectory.findSpecialty(appointment.getSpecialtyId())
                 .map(SpecialtySummary::name).orElse("Desconocido");
+        Encounter encounter = encounterRepository.findByAppointmentId(id).orElse(null);
 
-        return toResponse(appointment, patientName, professional, specialtyName);
+        return toResponse(appointment, patientName, professional, specialtyName, encounter);
     }
 
     private Appointment getAppointment(UUID id) {
@@ -353,16 +366,20 @@ public class AppointmentService {
         return patient.firstName() + " " + patient.lastName();
     }
 
-    private AppointmentResponse toResponse(Appointment appointment, String patientName, ProfessionalSummary professional, String specialtyName) {
+    private AppointmentResponse toResponse(Appointment appointment, String patientName, ProfessionalSummary professional, String specialtyName, Encounter encounter) {
         String professionalName = professional != null ? professional.firstName() + " " + professional.lastName() : "Desconocido";
         String colorTag = professional != null ? professional.colorTag() : null;
+        UUID encounterId = encounter != null ? encounter.getId() : null;
+        EncounterStatus encounterStatus = encounter != null ? encounter.getStatus() : null;
+        boolean encounterVoided = encounter != null && encounter.getVoidedAt() != null;
 
         return new AppointmentResponse(
                 appointment.getId(), appointment.getPatientId(), patientName,
                 appointment.getProfessionalId(), professionalName, colorTag,
                 appointment.getSpecialtyId(), specialtyName,
                 appointment.getStartAt(), appointment.getEndAt(), appointment.getStatus(), appointment.getSource(),
-                appointment.getReason(), appointment.getNotes(), appointment.getCheckedInAt(), appointment.getRescheduledFromId()
+                appointment.getReason(), appointment.getNotes(), appointment.getCheckedInAt(), appointment.getRescheduledFromId(),
+                encounterId, encounterStatus, encounterVoided
         );
     }
 }

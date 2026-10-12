@@ -10,6 +10,7 @@ import com.bellidental.patients.PatientSummary;
 import com.bellidental.persistence.entity.Appointment;
 import com.bellidental.persistence.entity.ProfessionalSchedule;
 import com.bellidental.persistence.repository.AppointmentRepository;
+import com.bellidental.persistence.repository.EncounterRepository;
 import com.bellidental.persistence.repository.ProfessionalScheduleRepository;
 import com.bellidental.professionals.ProfessionalDirectory;
 import com.bellidental.professionals.SpecialtySummary;
@@ -53,6 +54,9 @@ class AppointmentServiceTest {
 
     @Mock
     private ProfessionalScheduleRepository scheduleRepository;
+
+    @Mock
+    private EncounterRepository encounterRepository;
 
     @Mock
     private PatientDirectory patientDirectory;
