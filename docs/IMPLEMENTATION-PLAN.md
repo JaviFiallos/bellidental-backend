@@ -72,6 +72,7 @@ tests de reglas puras). La columna `*IT` y los tests listados en §4 son orienta
 | 004 | Pacientes y profesionales (API) | — | 003 | — |
 | 005 | Historia clínica + antecedentes | V5 | 004 | — (cubierto en 008) |
 | 006 | Agenda + horarios | V6 (incluye `professional_schedules`) | 004 | `AppointmentOverlapIT` |
+| 006c | Horarios con `ApiResponse` (G-8 del frontend) | — | 006 | `ScheduleApiIT` |
 | 007 | Catálogos clínicos: CIE-10, pg_trgm | V7 (`V7__icd10_catalog`) | 005 | `Icd10SearchIT` |
 | 008 | Atención clínica (encounters + diagnósticos) | V7.1 (`V7_1__encounters`) | 006, 007 | `EncounterFlowIT` |
 | 009 | Odontograma | V8 | 008 | `OdontogramFlowIT` |
@@ -147,6 +148,7 @@ Paquete `com.bellidental.appointments`. Migración V6: `appointments` con CHECK 
 - No se permiten turnos solapados del mismo profesional el mismo día (validación en el servicio).
 - Endpoints: `GET /professionals/{id}/schedules?from&to` (horario efectivo por día),
   `POST/PUT /professionals/{id}/schedules`, `POST /schedules/{id}/deactivate`.
+  Todos responden con `ApiResponse` (tarea 006c; antes devolvían el DTO sin envoltorio).
   Permiso: SCHEDULE_MANAGE (ADMIN y SECRETARIA; D-12). La secretaria registra días y horas de cada profesional.
 
 **Estados:**
