@@ -131,7 +131,8 @@ public class ClinicalRecordService {
         }
 
         if (request.currentMedication() != null) {
-            record.setCurrentMedication(request.currentMedication());
+            String trimmed = request.currentMedication().trim();
+            record.setCurrentMedication(trimmed.isEmpty() ? null : trimmed);
         }
 
         record = clinicalRecordRepository.save(record);

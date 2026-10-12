@@ -71,6 +71,7 @@ tests de reglas puras). La columna `*IT` y los tests listados en §4 son orienta
 | 003 | Auth email + JWT | — | 002 | `AuthControllerIT` |
 | 004 | Pacientes y profesionales (API) | — | 003 | — |
 | 005 | Historia clínica + antecedentes | V5 | 004 | — (cubierto en 008) |
+| 005b | Historia clínica con ApiResponse (G-9 del frontend) | — | 005 | `ClinicalRecordApiIT` |
 | 006 | Agenda + horarios | V6 (incluye `professional_schedules`) | 004 | `AppointmentOverlapIT` |
 | 006c | Horarios con `ApiResponse` (G-8 del frontend) | — | 006 | `ScheduleApiIT` |
 | 006d | Citas por paciente y adminNotes (G-4, G-5 del frontend) | — | 004, 006 | `PatientRecordApiIT` |
@@ -134,6 +135,7 @@ Reglas:
 
 Endpoints: `GET/POST /patients/{id}/clinical-record`, `POST /clinical-records/{id}/history-entries`,
 `POST /history-entries/{id}/void`, `PUT /clinical-records/{id}` (medicación actual, no refiere).
+Todos responden con `ApiResponse` (tarea 005b; antes devolvían el DTO sin envoltorio). En el `PUT`, `currentMedication` ausente o null no cambia; con texto se guarda con trim; vacía o solo espacios se guarda como null (se borra).
 Unit: reglas de scope/relative, no_known_history, apertura única.
 
 ### 4.3 Agenda — tarea 006 (RF07, reprogramar en recepción; base de RF12/RF15)

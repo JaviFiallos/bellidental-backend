@@ -1,9 +1,11 @@
 package com.bellidental.clinicalrecords;
 
 import com.bellidental.security.CurrentUser;
+import com.bellidental.shared.response.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -12,7 +14,6 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -27,47 +28,48 @@ public class ClinicalRecordController {
     private final CurrentUser currentUser;
 
     @PostMapping("/patients/{patientId}/clinical-record")
-    @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasAuthority('RECORD_CREATE')")
-    public ClinicalRecordResponse openClinicalRecord(@PathVariable UUID patientId) {
+    public ResponseEntity<ApiResponse<ClinicalRecordResponse>> openClinicalRecord(@PathVariable UUID patientId) {
         UUID professionalId = currentUser.professionalId().orElse(null);
-        return clinicalRecordService.open(patientId, professionalId);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.ok("Historia clínica abierta.", clinicalRecordService.open(patientId, professionalId)));
     }
 
     @GetMapping("/patients/{patientId}/clinical-record")
     @PreAuthorize("hasAuthority('RECORD_READ')")
-    public ClinicalRecordResponse getClinicalRecord(
+    public ResponseEntity<ApiResponse<ClinicalRecordResponse>> getClinicalRecord(
             @PathVariable UUID patientId,
             @RequestParam(defaultValue = "false") boolean includeVoided) {
-        return clinicalRecordService.getByPatientId(patientId, includeVoided);
+        return ResponseEntity.ok(ApiResponse.ok(clinicalRecordService.getByPatientId(patientId, includeVoided)));
     }
 
     @PutMapping("/clinical-records/{id}")
     @PreAuthorize("hasAuthority('RECORD_UPDATE')")
-    public ClinicalRecordResponse updateClinicalRecord(
+    public ResponseEntity<ApiResponse<ClinicalRecordResponse>> updateClinicalRecord(
             @PathVariable UUID id,
             @Valid @RequestBody UpdateClinicalRecordRequest request) {
-        return clinicalRecordService.update(id, request);
+        return ResponseEntity.ok(ApiResponse.ok("Historia clínica actualizada.", clinicalRecordService.update(id, request)));
     }
 
     @GetMapping("/medical-history-conditions")
     @PreAuthorize("hasAuthority('RECORD_READ')")
-    public List<MedicalHistoryConditionResponse> getMedicalHistoryConditions() {
-        return clinicalRecordService.getActiveConditions();
+    public ResponseEntity<ApiResponse<List<MedicalHistoryConditionResponse>>> getMedicalHistoryConditions() {
+        return ResponseEntity.ok(ApiResponse.ok(clinicalRecordService.getActiveConditions()));
     }
 
     @PostMapping("/clinical-records/{id}/history-entries")
-    @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasAuthority('RECORD_UPDATE')")
-    public MedicalHistoryEntryResponse addHistoryEntry(
+    public ResponseEntity<ApiResponse<MedicalHistoryEntryResponse>> addHistoryEntry(
             @PathVariable UUID id,
             @Valid @RequestBody CreateMedicalHistoryEntryRequest request) {
-        return clinicalRecordService.addEntry(id, request);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.ok("Antecedente registrado.", clinicalRecordService.addEntry(id, request)));
     }
 
     @PostMapping("/history-entries/{id}/void")
     @PreAuthorize("hasAuthority('RECORD_UPDATE')")
-    public void voidHistoryEntry(@PathVariable UUID id) {
+    public ResponseEntity<ApiResponse<Void>> voidHistoryEntry(@PathVariable UUID id) {
         clinicalRecordService.voidEntry(id);
+        return ResponseEntity.ok(ApiResponse.ok("Antecedente anulado."));
     }
 }
