@@ -38,16 +38,17 @@ public class PatientService {
     @Transactional(readOnly = true)
     public Page<PatientResponse> search(String query, int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
+        query = query.trim();
 
         Page<Patient> patientsPage;
         if (query.matches("\\d+")) {
             String prefix = toPhonePrefix(query) + "%";
             patientsPage = patientRepository.findActiveByDocumentOrPhonePrefix(query, prefix, pageable);
         } else {
-            if (query.trim().length() < 2) {
+            if (query.length() < 2) {
                 throw new InvalidInputException("La búsqueda por texto requiere al menos 2 caracteres.");
             }
-            patientsPage = patientRepository.findActiveByNameOrLastName(query.trim(), pageable);
+            patientsPage = patientRepository.findActiveByNameOrLastName(query, pageable);
         }
 
         return patientsPage.map(p -> PatientResponse.from(p, getZone()));

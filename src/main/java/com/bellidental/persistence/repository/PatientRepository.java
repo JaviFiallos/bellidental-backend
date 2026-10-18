@@ -26,7 +26,7 @@ public interface PatientRepository extends JpaRepository<Patient, UUID> {
     Optional<Patient> findByDocumentNumberAndDeletedAtIsNull(String documentNumber);
 
     @Query("SELECT p FROM Patient p WHERE p.deletedAt IS NULL AND p.active = true AND " +
-           "(p.documentNumber = :query OR p.phoneE164 LIKE :queryPrefix) " +
+           "(p.documentNumber LIKE CONCAT(:query, '%') OR p.phoneE164 LIKE :queryPrefix) " +
            "ORDER BY p.lastName, p.firstName")
     Page<Patient> findActiveByDocumentOrPhonePrefix(@Param("query") String query, @Param("queryPrefix") String queryPrefix, Pageable pageable);
 

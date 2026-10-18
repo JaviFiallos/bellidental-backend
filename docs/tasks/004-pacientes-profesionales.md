@@ -31,7 +31,7 @@ públicas para otros módulos (RF06 parcial, RF07 base; plan §4.1). Sin migraci
    formato no reconocible → 400. Puede ser nulo.
 5. `PUT /api/v1/patients/{id}` (PATIENT_UPDATE): mismas validaciones; `adminNotes` editable.
 6. `GET /api/v1/patients?query=&page=&size=` (PATIENT_READ), paginado (máx. 50), solo activos y no borrados:
-   - solo dígitos → coincidencia exacta de cédula **o** prefijo de teléfono (normalizado);
+   - solo dígitos → prefijo de cédula **o** prefijo de teléfono (normalizado) (ver Corrección posterior);
    - texto → nombre o apellido con `ILIKE` (el índice trigram llega en V7); mínimo 2 caracteres, si no → 400.
    Reemplaza al `GET` que devuelve todos los pacientes.
 7. `GET /api/v1/patients/{id}` (PATIENT_READ): identificación + `age` calculada a hoy en `application.clinic.zone`.
@@ -149,3 +149,12 @@ Verificado con `./mvnw clean verify`: surefire 30/30, failsafe 11/11. Resueltos 
 sin nombres calificados (quedan `AuthServiceTest`, fuera de alcance, y `CustomUserDetailsService`, choque real con `User`),
 tests de edad, reactivación y licencia duplicada, `toPhonePrefix`.
 Corrección mínima de Claude: test de edad renombrado a `findById_bornTenYearsAgoInClinicZone_returnsAgeTen`.
+
+## Corrección posterior (2026-10-17)
+Motivo: el combobox del frontend busca mientras se escribe; con coincidencia exacta de cédula, una cédula
+incompleta (`180145`) devolvía `content: []`. La búsqueda por nombre/apellido ya funcionaba.
+1. `PatientRepository.findActiveByDocumentOrPhonePrefix`: `documentNumber = :query` → `LIKE CONCAT(:query, '%')`
+   (prefijo, no `%…%`: conserva el uso del índice único de documento). Firma sin cambios.
+2. `PatientService.search`: `trim()` de la consulta antes de detectar si es solo dígitos (` 1801452937` caía en
+   la búsqueda por nombre).
+Aplicada por Claude como corrección mínima; sin tests nuevos (`PatientServiceTest` sigue cubriendo la decisión).
