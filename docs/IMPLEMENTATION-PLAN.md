@@ -186,8 +186,12 @@ PENDING ──confirmar──▶ CONFIRMED
 - `source`: RECEPTION (SECRETARIA), PROFESSIONAL (ODONTOLOGO), BOT, WALK_IN. `created_by` = usuario actual.
 - Publica eventos de dominio (`AppointmentCreated/Rescheduled/Cancelled/StatusChanged`) que consumen
   Google Calendar y recordatorios. Así agenda no depende de ellos.
-- Disponibilidad: `GET /availability?professionalId&specialtyId&date` → huecos libres (horario − citas
-  activas), en pasos de la duración de la especialidad. La usan recepción y bot.
+- Disponibilidad: `GET /availability?professionalId&specialtyId&date` (opcional `&durationMinutes`) → huecos
+  libres (horario − citas activas), en pasos de la duración indicada o de la especialidad si se omite (tarea 006f).
+  La usan recepción y bot.
+- Límites de duración (tarea 006f): `durationMinutes` en `/availability` y `endAt − startAt` en `POST /appointments`
+  y `POST /appointments/{id}/reschedule` deben ser múltiplos de 15 minutos, entre 15 y 240 (400 "La duración debe ser
+  múltiplo de 15 minutos, entre 15 y 240."). Si `endAt` no llega, toma la duración por defecto de la especialidad.
 
 Endpoints: `GET /appointments` (`?from&to`, `?professionalId&from&to`, `?patientId` o `?patientId&from&to`),
 `POST /appointments`, `POST /{id}/confirm|cancel|check-in|no-show|reschedule`, `POST /walk-in`,

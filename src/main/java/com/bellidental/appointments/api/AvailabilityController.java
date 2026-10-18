@@ -28,7 +28,9 @@ public class AvailabilityController {
     public ResponseEntity<ApiResponse<List<AvailableSlot>>> getAvailability(
             @RequestParam UUID professionalId,
             @RequestParam Long specialtyId,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
-        return ResponseEntity.ok(ApiResponse.ok(availabilityService.findAvailableSlots(professionalId, specialtyId, date)));
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestParam(required = false) Integer durationMinutes) {
+        return ResponseEntity.ok(ApiResponse.ok(
+                availabilityService.findAvailableSlots(professionalId, specialtyId, date, durationMinutes)));
     }
 }

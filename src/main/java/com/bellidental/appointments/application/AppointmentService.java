@@ -6,6 +6,7 @@ import com.bellidental.appointments.api.dto.AppointmentResponse;
 import com.bellidental.appointments.api.dto.CreateAppointmentRequest;
 import com.bellidental.appointments.api.dto.RescheduleAppointmentRequest;
 import com.bellidental.appointments.api.dto.WalkInRequest;
+import com.bellidental.appointments.domain.AppointmentDuration;
 import com.bellidental.appointments.domain.AppointmentOverlapException;
 import com.bellidental.appointments.domain.AppointmentTransitions;
 import com.bellidental.appointments.domain.EffectiveScheduleResolver;
@@ -90,7 +91,9 @@ public class AppointmentService {
         }
 
         OffsetDateTime endAt = request.endAt();
-        if (endAt == null) {
+        if (endAt != null) {
+            AppointmentDuration.validate(request.startAt(), endAt);
+        } else {
             endAt = request.startAt().plusMinutes(specialty.defaultDurationMinutes());
         }
         if (!endAt.isAfter(request.startAt())) {

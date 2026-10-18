@@ -32,6 +32,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.OffsetDateTime;
@@ -166,5 +167,52 @@ class AvailabilityIT {
         AppointmentResponse body = response.getBody().getData();
         assertThat(body.source()).isEqualTo(AppointmentSource.WALK_IN);
         assertThat(body.checkedInAt()).isNotNull();
+    }
+
+    @Test
+    void getAvailability_withDuration15_returnsQuarterBlocksAndSkipsLongAppointment() {
+        LocalDate day = LocalDate.now().plusDays(16);
+        createSchedule(day);
+
+        OffsetDateTime startAt = day.atTime(10, 0).atZone(clinicZone).toOffsetDateTime();
+        OffsetDateTime endAt = day.atTime(11, 0).atZone(clinicZone).toOffsetDateTime();
+        CreateAppointmentRequest request = new CreateAppointmentRequest(patientId, professionalId, specialtyId, startAt, endAt, null, null);
+        ResponseEntity<ApiResponse<AppointmentResponse>> created = restTemplate.exchange(
+                "/api/v1/appointments", HttpMethod.POST, new HttpEntity<>(request, headers),
+                new ParameterizedTypeReference<>() {});
+        assertThat(created.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+
+        ResponseEntity<ApiResponse<List<AvailableSlot>>> availability = restTemplate.exchange(
+                "/api/v1/availability?professionalId=" + professionalId + "&specialtyId=" + specialtyId + "&date=" + day + "&durationMinutes=15",
+                HttpMethod.GET, new HttpEntity<>(headers),
+                new ParameterizedTypeReference<>() {});
+        assertThat(availability.getStatusCode()).isEqualTo(HttpStatus.OK);
+        List<AvailableSlot> slots = availability.getBody().getData();
+
+        assertThat(slots).isNotEmpty();
+        assertThat(slots).allSatisfy(slot ->
+                assertThat(Duration.between(slot.startAt(), slot.endAt())).isEqualTo(Duration.ofMinutes(15)));
+
+        OffsetDateTime t0945 = day.atTime(9, 45).atZone(clinicZone).toOffsetDateTime();
+        OffsetDateTime t1000 = day.atTime(10, 0).atZone(clinicZone).toOffsetDateTime();
+        OffsetDateTime t1015 = day.atTime(10, 15).atZone(clinicZone).toOffsetDateTime();
+        OffsetDateTime t1030 = day.atTime(10, 30).atZone(clinicZone).toOffsetDateTime();
+        OffsetDateTime t1045 = day.atTime(10, 45).atZone(clinicZone).toOffsetDateTime();
+        OffsetDateTime t1100 = day.atTime(11, 0).atZone(clinicZone).toOffsetDateTime();
+
+        List<OffsetDateTime> startTimes = slots.stream()
+                .map(slot -> slot.startAt().atZoneSameInstant(clinicZone).toOffsetDateTime())
+                .toList();
+        assertThat(startTimes)
+                .doesNotContain(t1000, t1015, t1030, t1045)
+                .contains(t0945, t1100);
+
+        ResponseEntity<ApiResponse<Void>> invalidResponse = restTemplate.exchange(
+                "/api/v1/availability?professionalId=" + professionalId + "&specialtyId=" + specialtyId + "&date=" + day + "&durationMinutes=20",
+                HttpMethod.GET, new HttpEntity<>(headers),
+                new ParameterizedTypeReference<>() {});
+        assertThat(invalidResponse.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(invalidResponse.getBody().getMessage())
+                .isEqualTo("La duración debe ser múltiplo de 15 minutos, entre 15 y 240.");
     }
 }

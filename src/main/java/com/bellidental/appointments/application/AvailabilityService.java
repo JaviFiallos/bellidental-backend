@@ -1,6 +1,7 @@
 package com.bellidental.appointments.application;
 
 import com.bellidental.appointments.AvailableSlot;
+import com.bellidental.appointments.domain.AppointmentDuration;
 import com.bellidental.appointments.domain.EffectiveScheduleResolver;
 import com.bellidental.appointments.domain.Shift;
 import com.bellidental.appointments.domain.SlotCalculator;
@@ -32,6 +33,14 @@ public class AvailabilityService {
 
     @Transactional(readOnly = true)
     public List<AvailableSlot> findAvailableSlots(UUID professionalId, Long specialtyId, LocalDate date) {
+        return findAvailableSlots(professionalId, specialtyId, date, null);
+    }
+
+    @Transactional(readOnly = true)
+    public List<AvailableSlot> findAvailableSlots(UUID professionalId, Long specialtyId, LocalDate date, Integer durationMinutes) {
+        if (durationMinutes != null) {
+            AppointmentDuration.validate(durationMinutes);
+        }
         SpecialtySummary specialty = professionalDirectory.findSpecialty(specialtyId)
                 .filter(SpecialtySummary::active)
                 .orElseThrow(() -> new ResourceNotFoundException("Especialidad no encontrada o inactiva."));
@@ -42,6 +51,8 @@ public class AvailabilityService {
             return List.of();
         }
 
+        int duration = durationMinutes != null ? durationMinutes : specialty.defaultDurationMinutes();
+
         List<Shift> shifts = EffectiveScheduleResolver.resolve(date,
                 scheduleRepository.findByProfessionalIdAndActiveTrue(professionalId).stream()
                         .map(ScheduleService::toRule)
@@ -50,7 +61,7 @@ public class AvailabilityService {
         OffsetDateTime dayStart = date.atStartOfDay(clock.zone()).toOffsetDateTime();
         OffsetDateTime dayEnd = date.plusDays(1).atStartOfDay(clock.zone()).toOffsetDateTime();
 
-        return SlotCalculator.calculate(date, shifts, specialty.defaultDurationMinutes(),
+        return SlotCalculator.calculate(date, shifts, duration,
                 findBusyRanges(professionalId, dayStart, dayEnd), clock.now(), clock.zone());
     }
 
