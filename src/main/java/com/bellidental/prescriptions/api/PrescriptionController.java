@@ -2,11 +2,15 @@ package com.bellidental.prescriptions.api;
 
 import com.bellidental.prescriptions.api.dto.PrescriptionRequest;
 import com.bellidental.prescriptions.api.dto.PrescriptionResponse;
+import com.bellidental.prescriptions.application.PrescriptionPdfService;
 import com.bellidental.prescriptions.application.PrescriptionService;
 import com.bellidental.shared.response.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -26,6 +30,7 @@ import java.util.UUID;
 public class PrescriptionController {
 
     private final PrescriptionService prescriptionService;
+    private final PrescriptionPdfService prescriptionPdfService;
 
     @PostMapping("/encounters/{id}/prescriptions")
     @PreAuthorize("hasAuthority('RECORD_CREATE')")
@@ -44,6 +49,15 @@ public class PrescriptionController {
     @PreAuthorize("hasAuthority('RECORD_READ')")
     public ResponseEntity<ApiResponse<PrescriptionResponse>> getPrescription(@PathVariable UUID id) {
         return ResponseEntity.ok(ApiResponse.ok(prescriptionService.findById(id)));
+    }
+
+    @GetMapping("/prescriptions/{id}/pdf")
+    @PreAuthorize("hasAuthority('RECORD_READ')")
+    public ResponseEntity<byte[]> downloadPrescriptionPdf(@PathVariable UUID id) {
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_PDF)
+                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.inline().filename("receta-" + id + ".pdf").build().toString())
+                .body(prescriptionPdfService.generatePdf(id));
     }
 
     @PutMapping("/prescriptions/{id}")

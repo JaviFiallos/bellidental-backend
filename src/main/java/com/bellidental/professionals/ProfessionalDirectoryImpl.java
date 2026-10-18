@@ -29,7 +29,8 @@ public class ProfessionalDirectoryImpl implements ProfessionalDirectory {
                 p.getPhoneE164(),
                 p.getGoogleCalendarId(),
                 p.getColorTag(),
-                p.isActive()
+                p.isActive(),
+                p.getLicenseNumber()
         );
     }
 

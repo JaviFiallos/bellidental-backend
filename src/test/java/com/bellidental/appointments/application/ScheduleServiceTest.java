@@ -46,7 +46,7 @@ class ScheduleServiceTest {
 
     @Test
     void create_weekdayAndSpecificDate_throwsInvalidInput() {
-        when(professionalDirectory.findById(professionalId)).thenReturn(Optional.of(new ProfessionalSummary(professionalId, null, "John", "Doe", null, null, null, true)));
+        when(professionalDirectory.findById(professionalId)).thenReturn(Optional.of(new ProfessionalSummary(professionalId, null, "John", "Doe", null, null, null, true, null)));
 
         ScheduleRequest request = new ScheduleRequest((short) 1, LocalDate.now(), LocalTime.of(8, 0), LocalTime.of(12, 0), true);
         
@@ -57,7 +57,7 @@ class ScheduleServiceTest {
 
     @Test
     void create_overlappingSchedule_throwsBusinessException() {
-        when(professionalDirectory.findById(professionalId)).thenReturn(Optional.of(new ProfessionalSummary(professionalId, null, "John", "Doe", null, null, null, true)));
+        when(professionalDirectory.findById(professionalId)).thenReturn(Optional.of(new ProfessionalSummary(professionalId, null, "John", "Doe", null, null, null, true, null)));
         
         ProfessionalSchedule existing = ProfessionalSchedule.builder()
                 .id(1L)

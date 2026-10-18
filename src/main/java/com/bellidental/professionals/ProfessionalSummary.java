@@ -13,5 +13,6 @@ public record ProfessionalSummary(
         String phoneE164,
         String googleCalendarId,
         String colorTag,
-        boolean active
+        boolean active,
+        String licenseNumber
 ) {}
