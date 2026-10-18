@@ -80,7 +80,8 @@ tests de reglas puras). La columna `*IT` y los tests listados en §4 son orienta
 | 007 | Catálogos clínicos: CIE-10, pg_trgm | V7 (`V7__icd10_catalog`) | 005 | `Icd10SearchIT` |
 | 008 | Atención clínica (encounters + diagnósticos) | V7.1 (`V7_1__encounters`) | 006, 007 | `EncounterFlowIT` |
 | 009 | Odontograma | V8 | 008 | `OdontogramFlowIT` |
-| 010 | Tratamientos | V9 | 008, 009 | — |
+| 010a | Tratamientos: catálogo y registro en la atención | V9 | 008, 009 | `TreatmentFlowIT` |
+| 010b | Tratamientos ligados al odontograma (hallazgo + DONE automático) | — | 010a | — |
 | 011 | Recetas + PDF | V10 | 008 | — |
 | 012 | Cobros + comprobante | V11 | 010 | — |
 | 013 | Auditoría Envers | V12 | 012 | — (añade un caso a `EncounterFlowIT`) |
@@ -288,7 +289,7 @@ Reglas:
 Endpoints: `GET /odontogram/catalog` (piezas, caras, condiciones con símbolos), `GET /patients/{id}/odontogram`
 (vigente + CPO/ceo), `GET /encounters/{id}/findings`, `POST /encounters/{id}/findings`, `POST /findings/{id}/void`.
 
-### 4.6 Tratamientos — tarea 010 (RF04)
+### 4.6 Tratamientos — tareas 010a y 010b (RF04)
 Paquete `com.bellidental.treatments`. Migración V9: `treatment_catalog` con semilla (códigos de su
 ficha: D0150 examen, D1110/D1330 profilaxis/higiene, resinas, curaciones, exodoncia, endodoncia,
 sellantes…, con `base_price` que dé la clínica) y `performed_treatments`.
@@ -301,7 +302,7 @@ Reglas:
   correspondiente (pasa a azul).
 - Anular exige `void_reason`; afecta al saldo.
 - `GET /treatments?query=` búsqueda por nombre/código.
-- Interfaz pública `ChargeLedger` para cobros: cargos por paciente (fecha, tratamiento, profesional,
+- Interfaz pública `ChargeLedger` para cobros (pasa a la tarea 012, la que la consume): cargos por paciente (fecha, tratamiento, profesional,
   valor) **sin diagnósticos**.
 Unit: precio por defecto, validación de pertenencia del hallazgo, creación del DONE.
 
