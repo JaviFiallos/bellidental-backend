@@ -507,3 +507,4 @@ quitar RECORD_* de ADMIN en la semilla (hoy ADMIN = todos).
 |---|---|---|---|
 | D-5b | Confirmar con la clínica si el N° de HC es la cédula | — | 005 |
 | D-14b | Odontóloga: ¿CROWN cuenta como O en CPO? ¿Corona/prótesis por hacer = OTHER rojo? | CROWN = O/o; OTHER rojo | 009 |
+| D-14c | Odontóloga: ¿caries tratada = obturación (FILLING) y extracción indicada realizada = perdido por caries (MISSING_CARIES)? | sí (CARIES→FILLING, EXTRACTION→MISSING_CARIES) | 010b |

@@ -9,6 +9,10 @@ import com.bellidental.clinical.api.dto.Icd10Response;
 import com.bellidental.clinical.api.dto.OpenEncounterRequest;
 import com.bellidental.identity.api.dto.AuthResponse;
 import com.bellidental.identity.api.dto.LoginRequest;
+import com.bellidental.odontogram.api.dto.CatalogResponse;
+import com.bellidental.odontogram.api.dto.CreateFindingRequest;
+import com.bellidental.odontogram.api.dto.FindingResponse;
+import com.bellidental.odontogram.api.dto.OdontogramResponse;
 import com.bellidental.patients.CreatePatientRequest;
 import com.bellidental.patients.PatientSummary;
 import com.bellidental.persistence.repository.ProfessionalRepository;
@@ -16,6 +20,7 @@ import com.bellidental.persistence.repository.ProfessionalSpecialtyRepository;
 import com.bellidental.persistence.repository.UserRepository;
 import com.bellidental.shared.enums.DiagnosisCertainty;
 import com.bellidental.shared.enums.DocumentType;
+import com.bellidental.shared.enums.FindingStatus;
 import com.bellidental.shared.response.ApiResponse;
 import com.bellidental.support.TestcontainersConfiguration;
 import com.bellidental.treatments.api.dto.PerformedTreatmentResponse;
@@ -94,7 +99,7 @@ class TreatmentFlowIT {
         TreatmentResponse resina = resinas.getFirst();
         UUID diagnosisId = addDiagnosis(encounterId);
 
-        RecordTreatmentRequest request = new RecordTreatmentRequest(resina.id(), 2, null, diagnosisId, null, null, null);
+        RecordTreatmentRequest request = new RecordTreatmentRequest(resina.id(), 2, null, diagnosisId, null, null, null, null);
         ResponseEntity<ApiResponse<PerformedTreatmentResponse>> response = exchange(
                 HttpMethod.POST, "/api/v1/encounters/" + encounterId + "/treatments", request, odontologaHeaders,
                 new ParameterizedTypeReference<ApiResponse<PerformedTreatmentResponse>>() {});
@@ -110,7 +115,7 @@ class TreatmentFlowIT {
 
     @Test
     void voidTreatment_withoutReasonThenWithReason_excludesFromList() {
-        PerformedTreatmentResponse recorded = recordTreatment(encounterId, new RecordTreatmentRequest(anyTreatmentId(), null, null, null, null, null, null));
+        PerformedTreatmentResponse recorded = recordTreatment(encounterId, new RecordTreatmentRequest(anyTreatmentId(), null, null, null, null, null, null, null));
 
         ResponseEntity<ApiResponse<Void>> withoutReason = exchange(
                 HttpMethod.POST, "/api/v1/performed-treatments/" + recorded.id() + "/void", new VoidTreatmentRequest(""), odontologaHeaders,
@@ -131,13 +136,80 @@ class TreatmentFlowIT {
         UUID otherEncounterId = createEncounter(otherPatientId);
         UUID otherDiagnosisId = addDiagnosis(otherEncounterId);
 
-        RecordTreatmentRequest request = new RecordTreatmentRequest(anyTreatmentId(), null, null, otherDiagnosisId, null, null, null);
+        RecordTreatmentRequest request = new RecordTreatmentRequest(anyTreatmentId(), null, null, otherDiagnosisId, null, null, null, null);
         ResponseEntity<ApiResponse<PerformedTreatmentResponse>> response = exchange(
                 HttpMethod.POST, "/api/v1/encounters/" + encounterId + "/treatments", request, odontologaHeaders,
                 new ParameterizedTypeReference<ApiResponse<PerformedTreatmentResponse>>() {});
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
         assertThat(response.getBody().getMessage()).isEqualTo("El diagnóstico no pertenece a este paciente.");
+    }
+
+    @Test
+    void recordTreatment_onPendingFindingFromPreviousEncounter_createsDoneFinding() {
+        UUID dentalFindingId = createFinding(encounterId, conditionIdByCode("CARIES"), (short) 16, "M");
+        UUID currentEncounterId = createEncounter(patientId);
+
+        RecordTreatmentRequest request = new RecordTreatmentRequest(anyTreatmentId(), null, null, null, null, null, null, dentalFindingId);
+        ResponseEntity<ApiResponse<PerformedTreatmentResponse>> response = exchange(
+                HttpMethod.POST, "/api/v1/encounters/" + currentEncounterId + "/treatments", request, odontologaHeaders,
+                new ParameterizedTypeReference<ApiResponse<PerformedTreatmentResponse>>() {});
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        PerformedTreatmentResponse recorded = response.getBody().getData();
+        assertThat(recorded.dentalFindingId()).isEqualTo(dentalFindingId);
+        assertThat(recorded.toothCode()).isEqualTo((short) 16);
+        assertThat(recorded.surfaceCode()).isEqualTo("M");
+
+        List<FindingResponse> surfaceFindings = getPatientOdontogram(patientId).findings().stream()
+                .filter(f -> f.toothCode() == 16 && "M".equals(f.surfaceCode()))
+                .toList();
+        assertThat(surfaceFindings).hasSize(1);
+        assertThat(surfaceFindings.getFirst().status()).isEqualTo(FindingStatus.DONE);
+        assertThat(surfaceFindings.getFirst().conditionId()).isEqualTo(conditionIdByCode("FILLING"));
+    }
+
+    @Test
+    void recordTreatment_findingFromOtherPatient_returnsConflict() {
+        UUID otherPatientId = createPatient();
+        UUID otherEncounterId = createEncounter(otherPatientId);
+        UUID otherFindingId = createFinding(otherEncounterId, conditionIdByCode("CARIES"), (short) 16, "O");
+
+        RecordTreatmentRequest request = new RecordTreatmentRequest(anyTreatmentId(), null, null, null, null, null, null, otherFindingId);
+        ResponseEntity<ApiResponse<PerformedTreatmentResponse>> response = exchange(
+                HttpMethod.POST, "/api/v1/encounters/" + encounterId + "/treatments", request, odontologaHeaders,
+                new ParameterizedTypeReference<ApiResponse<PerformedTreatmentResponse>>() {});
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(response.getBody().getMessage()).isEqualTo("El hallazgo no pertenece a este paciente.");
+    }
+
+    private UUID createFinding(UUID encounterId, Long conditionId, Short toothCode, String surfaceCode) {
+        CreateFindingRequest request = new CreateFindingRequest(toothCode, null, surfaceCode, conditionId, FindingStatus.PENDING, null, null);
+        ResponseEntity<ApiResponse<FindingResponse>> response = exchange(
+                HttpMethod.POST, "/api/v1/encounters/" + encounterId + "/findings", request, odontologaHeaders,
+                new ParameterizedTypeReference<ApiResponse<FindingResponse>>() {});
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        return response.getBody().getData().id();
+    }
+
+    private Long conditionIdByCode(String conditionCode) {
+        ResponseEntity<ApiResponse<CatalogResponse>> response = exchange(
+                HttpMethod.GET, "/api/v1/odontogram/catalog", null, odontologaHeaders,
+                new ParameterizedTypeReference<ApiResponse<CatalogResponse>>() {});
+        return response.getBody().getData().conditions().stream()
+                .filter(c -> conditionCode.equals(c.code()))
+                .findFirst()
+                .orElseThrow()
+                .id();
+    }
+
+    private OdontogramResponse getPatientOdontogram(UUID patientId) {
+        ResponseEntity<ApiResponse<OdontogramResponse>> response = exchange(
+                HttpMethod.GET, "/api/v1/patients/" + patientId + "/odontogram", null, odontologaHeaders,
+                new ParameterizedTypeReference<ApiResponse<OdontogramResponse>>() {});
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        return response.getBody().getData();
     }
 
     private PerformedTreatmentResponse recordTreatment(UUID encounterId, RecordTreatmentRequest request) {

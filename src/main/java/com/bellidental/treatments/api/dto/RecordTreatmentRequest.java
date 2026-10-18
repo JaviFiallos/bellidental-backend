@@ -14,5 +14,6 @@ public record RecordTreatmentRequest(
         UUID encounterDiagnosisId,
         Short toothCode,
         String surfaceCode,
-        String notes
+        String notes,
+        UUID dentalFindingId
 ) {}

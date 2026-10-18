@@ -11,6 +11,7 @@ public record PerformedTreatmentResponse(
         String treatmentCode,
         String treatmentName,
         UUID encounterDiagnosisId,
+        UUID dentalFindingId,
         Short toothCode,
         String surfaceCode,
         Integer quantity,

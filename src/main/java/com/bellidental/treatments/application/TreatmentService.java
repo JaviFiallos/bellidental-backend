@@ -3,12 +3,15 @@ package com.bellidental.treatments.application;
 import com.bellidental.clinical.ClinicalDirectory;
 import com.bellidental.clinical.DiagnosisSummary;
 import com.bellidental.clinical.EncounterSummary;
+import com.bellidental.odontogram.FindingSummary;
+import com.bellidental.odontogram.OdontogramDirectory;
 import com.bellidental.persistence.entity.PerformedTreatment;
 import com.bellidental.persistence.entity.Treatment;
 import com.bellidental.persistence.repository.PerformedTreatmentRepository;
 import com.bellidental.persistence.repository.ToothRepository;
 import com.bellidental.persistence.repository.ToothSurfaceRepository;
 import com.bellidental.persistence.repository.TreatmentRepository;
+import com.bellidental.shared.enums.FindingStatus;
 import com.bellidental.shared.exception.BusinessException;
 import com.bellidental.shared.exception.InvalidInputException;
 import com.bellidental.shared.exception.ResourceNotFoundException;
@@ -40,6 +43,7 @@ public class TreatmentService {
     private final ToothRepository toothRepository;
     private final ToothSurfaceRepository toothSurfaceRepository;
     private final ClinicalDirectory clinicalDirectory;
+    private final OdontogramDirectory odontogramDirectory;
     private final ClinicClock clinicClock;
 
     @Transactional(readOnly = true)
@@ -60,15 +64,21 @@ public class TreatmentService {
         if (request.encounterDiagnosisId() != null) {
             requireDiagnosisOfPatient(request.encounterDiagnosisId(), encounter.patientId());
         }
-        requireExistingTooth(request.toothCode());
-        requireExistingSurface(request.surfaceCode());
+        FindingSummary linkedFinding = request.dentalFindingId() != null
+                ? linkDentalFinding(request.dentalFindingId(), encounter)
+                : null;
+        Short toothCode = toothCodeOf(request, linkedFinding);
+        String surfaceCode = surfaceCodeOf(request, linkedFinding);
+        requireExistingTooth(toothCode);
+        requireExistingSurface(surfaceCode);
 
         PerformedTreatment performed = new PerformedTreatment();
         performed.setEncounterId(encounterId);
         performed.setTreatmentId(treatment.getId());
         performed.setEncounterDiagnosisId(request.encounterDiagnosisId());
-        performed.setToothCode(request.toothCode());
-        performed.setSurfaceCode(request.surfaceCode());
+        performed.setDentalFindingId(request.dentalFindingId());
+        performed.setToothCode(toothCode);
+        performed.setSurfaceCode(surfaceCode);
         performed.setQuantity(request.quantity() != null ? request.quantity() : DEFAULT_QUANTITY);
         performed.setPrice(request.price() != null ? request.price() : treatment.getBasePrice());
         performed.setNotes(request.notes());
@@ -133,6 +143,44 @@ public class TreatmentService {
         }
     }
 
+    private FindingSummary linkDentalFinding(UUID dentalFindingId, EncounterSummary encounter) {
+        FindingSummary finding = odontogramDirectory.findFinding(dentalFindingId)
+                .orElseThrow(() -> new ResourceNotFoundException("Hallazgo no encontrado"));
+
+        if (finding.voided()) {
+            throw new BusinessException("El hallazgo está anulado.");
+        }
+        requireFindingOfPatient(finding, encounter.patientId());
+
+        if (finding.status() == FindingStatus.PENDING) {
+            odontogramDirectory.recordDoneFor(finding.id(), encounter.id());
+        }
+        return finding;
+    }
+
+    private Short toothCodeOf(RecordTreatmentRequest request, FindingSummary linkedFinding) {
+        if (request.toothCode() != null || linkedFinding == null) {
+            return request.toothCode();
+        }
+        return linkedFinding.toothCode();
+    }
+
+    private String surfaceCodeOf(RecordTreatmentRequest request, FindingSummary linkedFinding) {
+        if (request.surfaceCode() != null || linkedFinding == null) {
+            return request.surfaceCode();
+        }
+        return linkedFinding.surfaceCode();
+    }
+
+    private void requireFindingOfPatient(FindingSummary finding, UUID patientId) {
+        UUID findingPatientId = clinicalDirectory.findEncounter(finding.encounterId())
+                .map(EncounterSummary::patientId)
+                .orElse(null);
+        if (!patientId.equals(findingPatientId)) {
+            throw new BusinessException("El hallazgo no pertenece a este paciente.");
+        }
+    }
+
     private void requireExistingTooth(Short toothCode) {
         if (toothCode != null && !toothRepository.existsById(toothCode)) {
             throw new InvalidInputException("Pieza no existe");
@@ -164,6 +212,7 @@ public class TreatmentService {
                 treatment.getCode(),
                 treatment.getName(),
                 performed.getEncounterDiagnosisId(),
+                performed.getDentalFindingId(),
                 performed.getToothCode(),
                 performed.getSurfaceCode(),
                 performed.getQuantity(),

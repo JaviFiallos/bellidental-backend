@@ -35,6 +35,9 @@ public class PerformedTreatment {
     @Column(name = "encounter_diagnosis_id")
     private UUID encounterDiagnosisId;
 
+    @Column(name = "dental_finding_id")
+    private UUID dentalFindingId;
+
     @Column(name = "tooth_code")
     private Short toothCode;
 

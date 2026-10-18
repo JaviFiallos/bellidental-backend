@@ -2,11 +2,13 @@ package com.bellidental.odontogram.application;
 
 import com.bellidental.clinical.ClinicalDirectory;
 import com.bellidental.clinical.EncounterSummary;
+import com.bellidental.odontogram.FindingSummary;
 import com.bellidental.odontogram.api.dto.*;
 import com.bellidental.odontogram.domain.*;
 import com.bellidental.patients.PatientDirectory;
 import com.bellidental.persistence.entity.*;
 import com.bellidental.persistence.repository.*;
+import com.bellidental.shared.enums.FindingStatus;
 import com.bellidental.shared.exception.BusinessException;
 import com.bellidental.shared.exception.InvalidInputException;
 import com.bellidental.shared.exception.ResourceNotFoundException;
@@ -63,6 +65,37 @@ public class OdontogramService {
 
     @Transactional
     public FindingResponse createFinding(UUID encounterId, CreateFindingRequest request) {
+        DentalFinding finding = saveFinding(encounterId, request);
+        return mapToResponses(List.of(finding)).getFirst();
+    }
+
+    @Transactional
+    public FindingSummary recordDoneFor(UUID findingId, UUID encounterId) {
+        DentalFinding original = requireFinding(findingId);
+        String pendingCode = conditionRepository.findById(original.getDentalConditionId())
+                .map(DentalCondition::getCode)
+                .orElseThrow(() -> new ResourceNotFoundException("Condición no encontrada"));
+        DentalCondition doneCondition = conditionRepository
+                .findByCode(DoneConditionResolver.resolveDoneConditionCode(pendingCode))
+                .orElseThrow(() -> new ResourceNotFoundException("Condición realizada no encontrada"));
+
+        if (!symbolRepository.existsByDentalConditionIdAndStatus(doneCondition.getDentalConditionId(), FindingStatus.DONE)) {
+            throw new BusinessException("La condición del hallazgo no admite estado realizado.");
+        }
+
+        CreateFindingRequest doneRequest = new CreateFindingRequest(
+                original.getToothCode(), original.getEndToothCode(), original.getSurfaceCode(),
+                doneCondition.getDentalConditionId(), FindingStatus.DONE, original.getGrade(), original.getNotes()
+        );
+        return toSummary(saveFinding(encounterId, doneRequest));
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<FindingSummary> findFinding(UUID findingId) {
+        return findingRepository.findById(findingId).map(this::toSummary);
+    }
+
+    private DentalFinding saveFinding(UUID encounterId, CreateFindingRequest request) {
         clinicalDirectory.requireModifiableEncounter(encounterId);
 
         DentalCondition condition = conditionRepository.findById(request.conditionId())
@@ -102,8 +135,25 @@ public class OdontogramService {
         finding.setNotes(request.notes());
         finding.setCreatedAt(clinicClock.now());
 
-        finding = findingRepository.save(finding);
-        return mapToResponses(List.of(finding)).getFirst();
+        return findingRepository.save(finding);
+    }
+
+    private DentalFinding requireFinding(UUID findingId) {
+        return findingRepository.findById(findingId)
+                .orElseThrow(() -> new ResourceNotFoundException("Hallazgo no encontrado"));
+    }
+
+    private FindingSummary toSummary(DentalFinding finding) {
+        return new FindingSummary(
+                finding.getDentalFindingId(),
+                finding.getEncounterId(),
+                finding.getToothCode(),
+                finding.getEndToothCode(),
+                finding.getSurfaceCode(),
+                finding.getDentalConditionId(),
+                finding.getStatus(),
+                finding.getVoidedAt() != null
+        );
     }
 
     @Transactional(readOnly = true)
@@ -117,8 +167,7 @@ public class OdontogramService {
 
     @Transactional
     public void voidFinding(UUID findingId) {
-        DentalFinding finding = findingRepository.findById(findingId)
-                .orElseThrow(() -> new ResourceNotFoundException("Hallazgo no encontrado"));
+        DentalFinding finding = requireFinding(findingId);
 
         if (finding.getVoidedAt() != null) {
             throw new BusinessException("El hallazgo ya está anulado");
