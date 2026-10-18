@@ -82,7 +82,8 @@ tests de reglas puras). La columna `*IT` y los tests listados en §4 son orienta
 | 009 | Odontograma | V8 | 008 | `OdontogramFlowIT` |
 | 010a | Tratamientos: catálogo y registro en la atención | V9 | 008, 009 | `TreatmentFlowIT` |
 | 010b | Tratamientos ligados al odontograma (hallazgo + DONE automático) | — | 010a | — |
-| 011 | Recetas + PDF | V10 | 008 | — |
+| 011a | Recetas: medicamentos, presets y ciclo DRAFT → ISSUED | V10 | 008 | `PrescriptionFlowIT` |
+| 011b | Receta PDF | — | 011a | — |
 | 012 | Cobros + comprobante | V11 | 010 | — |
 | 013 | Auditoría Envers | V12 | 012 | — (añade un caso a `EncounterFlowIT`) |
 | 014 | Google Calendar (sistema → Google) | — | 006 | — |
@@ -501,6 +502,7 @@ quitar RECORD_* de ADMIN en la semilla (hoy ADMIN = todos).
 | D-13 | Alta de cuentas para profesionales: posterior al MVP; endpoints estipulados; mientras tanto, por migración | §4.13 |
 | D-14 | Odontograma completo: simbología en `dental_condition_symbols`, alcance SPAN para prótesis, categoría periodontal y rango de grado | `schema.dbml`, §4.5 |
 | D-15 | appointments lee el vínculo cita→atención con EncounterRepository (solo lectura) para evitar el ciclo con clinical | §4.3 |
+| D-16 | Reemplazar los ítems de una receta DRAFT borra sus filas de `prescription_items`; es la única excepción a «sin DELETE en datos clínicos», porque un borrador nunca se entregó al paciente. Los ítems de una receta ISSUED nunca se borran | §4.7 |
 
 **Pendientes:**
 | ID | Decisión | Propuesta | Afecta |
