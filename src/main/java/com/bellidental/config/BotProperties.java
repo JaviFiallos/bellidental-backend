@@ -9,5 +9,11 @@ public record BotProperties(
         String apiKey,
         String privacyNoticeVersion,
         List<String> publicTreatments,
-        Long urgentSpecialtyId
-) {}
+        Long urgentSpecialtyId,
+        Limits limits
+) {
+    public record Limits(
+            int maxActivePerPhone,
+            int changeMinHours
+    ) {}
+}

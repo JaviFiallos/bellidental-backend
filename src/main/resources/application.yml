@@ -48,6 +48,9 @@ application:
       - D1110
       - D2330
     urgent-specialty-id: 1
+    limits:
+      max-active-per-phone: 3
+      change-min-hours: 2
   clinic:
     name: Bellidental Clínica Dental   # provisional
     address: Dirección por definir      # provisional
