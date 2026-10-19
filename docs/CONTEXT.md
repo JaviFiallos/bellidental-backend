@@ -23,8 +23,9 @@ Por qué existe cada requerimiento. Se lee una vez por sesión de planificación
   20+ sin leer a las 07:00–08:00; 31–60 min/día solo confirmando citas; 3–5 inasistencias/semana.
 - Hoy usan: ficha rápida (papel), Formulario 033 (papel), Excel (réplica del 033), Google Calendar
   compartido (un color por doctor) y WhatsApp manual.
-- Preferencia explícita del director: **instalación local**, sin suscripción que "deje de funcionar a
-  los 6–7 meses"; disposición a pagar ~200 USD único. Ver §8 y RNF04.
+- Preferencia explícita del director: que los datos no dependan de una suscripción que "deje de funcionar a
+  los 6–7 meses" (perdió su información con un SaaS impago); disposición a pagar ~200 USD único. Se planteó
+  instalación local y se cambió a un VPS a nombre de la clínica (D-17). Ver §8 y RNF04.
 
 ## 2. Actores → roles del sistema
 
@@ -134,16 +135,27 @@ salud = categoría especial; art. 31 exime consentimiento para el registro clín
 | N5 Consultas humanas | — | I5 → RF14 derivar |
 
 El bot **complementa** a recepción, no la reemplaza. Solo pacientes ya registrados (filiación en
-recepción). Nada clínico ni saldos (se deriva).
+recepción). Nada clínico ni saldos (se deriva). Entiende texto libre ("tengo un fuerte dolor", "¿cuánto cuesta
+una limpieza?") además del menú: la IA interpreta la intención y el sistema responde con datos propios. Ante
+dolor o urgencia ofrece el primer hueco disponible y un texto fijo de emergencia, nunca consejo médico (D-21).
 
-## 8. Propiedad de los datos y despliegue local (RNF04)
+## 8. Propiedad de los datos y despliegue en VPS (RNF04)
 
-Requisito de origen: el director perdió servicio con sistemas en la nube por suscripción. Por tanto:
-- La base vive en un equipo de la clínica (el PC de recepción, D-4), no en un SaaS del desarrollador.
-- No hay licencia, clave de activación ni dependencia remota que pueda apagar el sistema.
-- Sin internet funcionan: pacientes, agenda, atención clínica, recetas, cobros. Solo el bot y la
-  sincronización con Google necesitan internet.
-- Respaldos automáticos y exportación completa en formato abierto: la clínica puede irse con sus datos.
+Requisito de origen: el director perdió su información con un sistema en la nube por suscripción impaga. Se
+planteó instalar el sistema en el PC de recepción, pero eso traía riesgos (equipo apagado, un solo disco, uso
+compartido). Decisión (D-17): **VPS en la nube a nombre de la clínica**. Lo que protege los datos no es dónde está
+el servidor, sino de quién son las cuentas:
+- VPS, dominio, portafolio de Meta, proveedor de IA y Google Drive con el correo y el medio de pago de la clínica
+  (durante el desarrollo los paga el desarrollador). El desarrollador queda como colaborador.
+- Sin licencia, clave de activación ni dependencia del desarrollador. El `docker-compose` es portable a otro
+  proveedor.
+- Respaldos automáticos en el VPS y en el Google Drive de la clínica (D-18); exportación completa en formato
+  abierto: la clínica puede irse con sus datos.
+- Encargados del tratamiento (LOPDP): proveedor del VPS, Meta (Cloud API) y proveedor de IA procesan datos por
+  cuenta de la clínica. Se aceptan sus términos de tratamiento, se nombran en el aviso de privacidad del bot y se
+  justifica la transferencia internacional (servidores fuera de Ecuador). Al LLM solo va el texto del mensaje,
+  nunca nombre, cédula ni historial.
+- Sin internet en la clínica no se puede usar el sistema (el bot sigue atendiendo): contingencia BN10.
 Detalle técnico en `IMPLEMENTATION-PLAN.md §1`.
 
 ---
@@ -207,7 +219,7 @@ El esquema es sólido. Lo siguiente falta o necesita una regla; ordenado por imp
 | O4 | **Walk-in vs EXCLUDE**: una cita `WALK_IN` que se cruce con otra del mismo profesional será rechazada por la BD. | Recepción | Walk-in exige hueco libre; si no hay, se asigna a otro profesional o se espera. Sin cambio de esquema |
 | O5 | `no_known_history` es un solo booleano; el 033 distingue "no refiere personales" de "no refiere familiares". | Impresión 033 (fuera) | Derivable: sin entradas PERSONAL activas → "no refiere personales". Sin cambio |
 | O6 | En Ecuador el N° de HCU suele ser la cédula. | Formato | Provisional `HC-000001` (D-5); confirmar con la clínica |
-| O7 | Estado de la conversación del bot (paso del flujo, derivación a humano) no tiene tabla. | RF12, RF14, RF15 | En memoria con TTL (una sola instancia local). Sin cambio |
+| O7 | Estado de la conversación del bot (paso del flujo, derivación a humano) no tiene tabla. | RF12, RF14, RF15 | En memoria del agente Python con TTL (una sola instancia). Sin cambio |
 | O8 | Fallos de sincronización con Google no tienen columna de estado. | RF07 sync | Reconciliación diaria idempotente de citas futuras. Sin cambio |
 | O9 | `pg_trgm` sobre nombre de paciente está en las notas pero no en V3. | RF06 búsqueda | Crear extensión e índice en V7 (junto a CIE-10) |
 | O10 | Presupuestos (reverso de la ficha rápida) no están modelados. | No es requerimiento | Fuera; `admin_notes` lo cubre |
@@ -222,5 +234,7 @@ El esquema es sólido. Lo siguiente falta o necesita una regla; ordenado por imp
 - **Rojo / azul**: `PENDING` / `DONE`.
 - **CPO / ceo**: cariados-perdidos-obturados (permanentes) / cariados-extracción indicada-obturados (temporales).
 - **Saldo**: Σ (precio × cantidad) de tratamientos no anulados − Σ pagos no anulados del paciente.
-- **Derivar**: el bot deja de responder y avisa a recepción.
+- **Derivar**: el bot deja de responder y da el enlace del WhatsApp de recepción.
+- **Agente**: servicio Python del bot (WhatsApp, conversación, NLU); no toca la BD, usa la API interna `/api/v1/bot/*`.
+- **NLU**: comprensión del lenguaje natural; aquí, un LLM que devuelve intención y datos del mensaje.
 - **FDI**: numeración de piezas 11–48 (permanentes) y 51–85 (temporales).

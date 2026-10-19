@@ -10,36 +10,38 @@ Marcas: **[D-n]** = decisión pendiente (ver §6). Nada marcado así se implemen
 
 ## 1. Arquitectura y despliegue (RNF04, RNF05)
 
-**Topología local (D-4: el servidor es el PC de recepción; no hay presupuesto para un equipo dedicado):**
+**Topología (D-17: VPS en la nube; reemplaza a D-4, el PC de recepción):**
 ```
-PC de recepción (también es el servidor)
- └─ Docker Compose
-     ├─ postgres:16          (volumen local; único lugar donde viven los datos)
-     ├─ backend (Spring Boot 3.4, Java 21)
-     ├─ frontend (Angular, servido por nginx)  → accesible por LAN: http://bellidental.local
-     ├─ backup  (pg_dump programado)
-     └─ tunnel  (Cloudflare Tunnel: expone SOLO /api/v1/whatsapp/webhook a internet)
-PCs de recepción y consultorios → navegador en la LAN
+VPS (2 vCPU, 4 GB RAM) · Docker Compose · restart: unless-stopped
+ ├─ caddy       único servicio con puertos públicos (80/443); HTTPS automático (Let's Encrypt)
+ │   ├─ app.<dominio>           → frontend
+ │   ├─ app.<dominio>/api/v1/   → backend   (bloquea /api/v1/bot/** desde internet)
+ │   └─ bot.<dominio>/webhook   → agent
+ ├─ frontend    Angular servido por nginx
+ ├─ backend     Spring Boot 3.4, Java 21
+ ├─ agent       Python (FastAPI): WhatsApp + conversación + NLU (§4.11); habla con backend por la red interna
+ ├─ postgres:16 sin puerto publicado; volumen del VPS
+ └─ backup      pg_dump diario + copia cifrada a Google Drive de la clínica
+PCs de recepción y consultorios → navegador → https://app.<dominio>
 ```
-- Sin internet: todo funciona salvo bot y Google Calendar (se ponen al día al volver la conexión).
-- Riesgos asumidos por usar el PC de recepción y cómo se mitigan:
-  - **Si se apaga, se cae todo** (incluido el bot, que debería atender de 07:00 a 08:00 y fuera de horario).
-    Mitigación: dejarlo encendido, sin suspensión ni hibernación; encendido automático por BIOS a las
-    06:30 y reinicio tras un corte de luz; Docker arranca con el sistema (`restart: unless-stopped`).
-    Si igual se apaga de noche, los mensajes del bot que lleguen se pierden, los recordatorios salen al
-    encender y Google se reconcilia al arrancar.
-  - **Recursos**: mínimo 8 GB de RAM; límites de memoria en Compose (JVM `-Xmx512m`, Postgres ~256 MB)
-    para que la recepción siga usando el equipo.
-  - **Un solo disco**: los respaldos fuera de ese disco son obligatorios, no opcionales.
-  - **Uso compartido**: cuenta de sistema operativo de la secretaria sin permisos de administrador;
-    disco cifrado (BitLocker o LUKS) si el sistema operativo lo permite.
-- El túnel no abre puertos en el router; expone únicamente el webhook de WhatsApp.
-- Sin licencia ni verificación remota. Se entregan `docker-compose.yml`, `.env.example` y guía de
-  instalación/restauración.
-- Respaldos: `pg_dump -Fc` diario 20:30 a disco local, retención 30 días; copia **diaria** a un USB o
-  disco externo y semanal a la nube de la propia clínica (Google Drive del director), cifrada. Procedimiento de restauración probado y documentado.
+- **Propiedad (RNF04)**: VPS, dominio, portafolio de Meta, proveedor de IA y Google Drive con el correo y el medio
+  de pago de la clínica al implantar; el desarrollador queda como colaborador. Durante el desarrollo los paga el
+  desarrollador (temporal). El `docker-compose` es portable a otro proveedor.
+- **Encargados del tratamiento (LOPDP)**: proveedor del VPS, Meta (Cloud API) y proveedor de IA. Se aceptan sus
+  términos de tratamiento, se nombran en el aviso de privacidad (RF10) y se justifica la transferencia
+  internacional (servidores fuera de Ecuador).
+- **Seguridad mínima**: solo 80/443 y SSH con llave (firewall `ufw`, `fail2ban` en SSH); Postgres y backend sin
+  puertos publicados; límite de intentos en `/auth/login`; actualizaciones automáticas del sistema operativo;
+  secretos en `.env` fuera del repositorio.
+- **Sin internet en la clínica** no se puede usar el sistema (el bot sigue atendiendo): contingencia BN10 con la
+  ficha rápida en papel y carga posterior. Recomendado: datos móviles como conexión de respaldo.
+- **Respaldos (D-18)**: `pg_dump -Fc` diario 20:30 en el VPS (retención 30 días) y la misma copia cifrada en el
+  Google Drive de la clínica (`rclone`). Solo esas dos copias. La restauración se documenta en
+  `docs/OPERATIONS.md`, pero no se prueba dentro del MVP.
 - Exportación abierta: ZIP con un CSV por tabla (UTF-8, cabecera) + dump SQL, solo `ADMIN`.
-- Contingencia (BN10): si el sistema cae, se usa la ficha rápida en papel y se carga al volver.
+- Sin licencia ni verificación remota. Se entregan `docker-compose`, `.env.example` y guía de instalación.
+- Desarrollo del bot: número de prueba de Meta y webhook a la laptop con un túnel temporal
+  (`cloudflared tunnel --url http://localhost:8000`).
 
 ## 2. Convenciones transversales
 
@@ -87,13 +89,23 @@ tests de reglas puras). La columna `*IT` y los tests listados en §4 son orienta
 | 012 | Cobros + comprobante | V11 | 010 | — |
 | 013 | Auditoría Envers | V12 | 012 | — (añade un caso a `EncounterFlowIT`) |
 | 014 | Google Calendar (sistema → Google) | — | 006 | — |
-| 015 | Bot: núcleo, aviso, info, derivar | V13 | 006 | — |
-| 016 | Bot: agendar y reprogramar | — | 015 | — |
-| 017 | Bot: recordatorios | — | 016 | — |
-| 018 | Respaldos y exportación | — | todo | — |
+| 015a | Bot (Java): API interna base — V13, clave de servicio, consentimiento, info, identificación | V13 | 006 | `BotApiIT` |
+| 015b | Agente (Python): esqueleto, webhook, firma, envío, cliente del backend | — | 015a | — (pytest) |
+| 015c | Agente: aviso de privacidad, menú, horarios, precios, derivar | — | 015b | — (pytest) |
+| 016a | Bot (Java): consultas de agenda — especialidades, profesionales, días, horas, urgencias, citas del paciente | — | 015a | `BotAvailabilityIT` |
+| 016b | Bot (Java): agendar, reprogramar, cancelar, confirmar + límites (D-9, D-10) y `code` en los 409 | — | 016a | `BotAppointmentIT` |
+| 016c | Agente: identificación del paciente y agendar | — | 015c, 016b | — (pytest) |
+| 016d | Agente: mis citas — reprogramar, cancelar, confirmar | — | 016c | — (pytest) |
+| 016e | Agente: NLU con LLM — intenciones, urgencia, precios, fuera de tema | — | 016d | — (pytest) |
+| 017a | Bot (Java): recordatorios — creación por eventos, due/sent/response | — | 016b | `BotReminderIT` |
+| 017b | Agente: envío de recordatorios y respuesta a sus botones | — | 016d, 017a | — (pytest) |
+| 018 | Despliegue en VPS, respaldos y exportación | — | todo | — |
 
 (007 y 008 van separadas: CIE-10 en `V7__icd10_catalog.sql` y atención en `V7_1__encounters.sql`, para no renumerar 009+.)
 (El historial inmediato `GET /patients/{id}/clinical-summary` de §4.4 sale de la 008: va en una tarea propia después de la 011.)
+(Las tareas del agente (015b, 015c, 016c–016e, 017b) viven en `../bellidental-agent/docs/tasks/`, con su propio
+`CLAUDE.md`/`GEMINI.md`; el contrato entre ambos es `../bellidental-agent/docs/BACKEND-API.md`.)
+(La 012 y el historial inmediato no bloquean al bot, pero sí el postest del TGA: deben estar listos antes de medir.)
 
 ---
 
@@ -363,90 +375,159 @@ para que el director vea su día en el móvil. **No** se lee de Google (eso rein
   corrige hora (idempotente). Así no se necesita columna de estado (O8).
 Unit con cliente mockeado: mapeo cita→evento, reconciliación decide crear/actualizar/borrar.
 
-### 4.11 Bot WhatsApp — tareas 015–017 (RF10–RF15, RNF03)
-Paquete `com.bellidental.whatsapp`. WhatsApp Cloud API (Meta): webhook `POST /api/v1/whatsapp/webhook`
-(verificación con `hub.verify_token` y firma `X-Hub-Signature-256`), envío por Graph API.
+### 4.11 Bot WhatsApp — tareas 015a–017b (RF10–RF15, RNF03)
 
-**Cuenta de WhatsApp (D-3, no negociable)** — por falta de tiempo para el trámite de verificación de
-empresa ante Meta:
+**Arquitectura híbrida (D-19).** Dos piezas; el agente nunca toca la BD:
+
+| Pieza | Dónde | Hace | No hace |
+|---|---|---|---|
+| Agente (Python, FastAPI) | repo `../bellidental-agent` | webhook de WhatsApp (verificación y firma), envío por Graph API, estado de la conversación, NLU con LLM, textos | acceder a la BD, decidir reglas de negocio |
+| API interna del bot (Java) | este repo, módulo `com.bellidental.bot` | `/api/v1/bot/*`: consentimiento, info, identificación, disponibilidad, agendar/reprogramar/cancelar/confirmar, recordatorios; aplica D-9, D-10 y RNF03 | conversación, WhatsApp |
+
+Principio: **la IA interpreta, el código decide**. El LLM solo devuelve intención y datos; la máquina de estados del
+agente decide el paso siguiente; toda escritura la hace Java y solo después de que el paciente pulse *Confirmar*.
+El LLM no tiene herramientas que escriban ni ve datos de otros pacientes (defensa ante *prompt injection*).
+Hay dos tipos de estado: los de la **cita** (PENDING, CONFIRMED…) siguen en Java (§4.3); los de la
+**conversación** (paso del flujo) viven en el agente.
+
+**Cuenta de WhatsApp (D-3, D-22, no negociable)** — sin verificación de empresa ante Meta:
 | Entorno | Modalidad | Uso |
 |---|---|---|
-| Desarrollo | Número de prueba de Meta (sandbox): gratis, solo a destinatarios registrados a mano (máx. 5) | Desarrollo y demos |
-| Producción | Número real conectado a Cloud API **sin verificación de empresa** (nivel básico, sin verificar) | Pacientes reales |
+| Desarrollo | Número de prueba de Meta: gratis, solo a destinatarios registrados a mano (máx. 5) | Desarrollo y demos |
+| Producción | Chip prepago dedicado conectado a Cloud API **sin verificación de empresa** | Pacientes reales |
 
-- Sin verificación, los mensajes que **inicia la clínica** (plantillas: recordatorios) tienen un tope de
-  destinatarios únicos por 24 h (≈250 en la documentación de Meta; confirmarlo al configurar). Con
-  ~26 citas/día los recordatorios caben. Las respuestas a pacientes que escriben primero (ventana de
-  24 h) no cuentan para ese tope.
-- Requisitos: app en Meta for Developers, cuenta de WhatsApp Business (WABA), un número **que no esté
-  registrado en la app de WhatsApp** (o que se dé de baja de ella), nombre visible, plantilla del
-  recordatorio aprobada (categoría *utility*), token permanente de usuario de sistema y, si Meta cobra
-  las plantillas, un método de pago. Revisar costos vigentes por mensaje en Ecuador.
-- Consecuencia: **el número del bot es exclusivo del bot**. La recepción sigue con su número actual en
-  WhatsApp Business app.
-- El código no cambia entre entornos: número, token e id de plantilla van por configuración
-  (`application.whatsapp.*`). Verificar la empresa más adelante solo sube los topes.
-El bot actúa como `bot_whatsapp`; solo usa `PatientDirectory`, `AppointmentScheduler`,
-`ProfessionalDirectory`, catálogo de precios y `application.clinic.*`. **Nunca** módulos clínicos ni
-cobros (RNF03): saldos y preguntas clínicas se derivan.
+- Límites confirmados: 250 números distintos por 24 h móviles para los mensajes que inicia la clínica
+  (plantillas), a nivel de portafolio; las respuestas dentro de la ventana de 24 h no cuentan; máx. 2 números.
+- El número del bot es exclusivo: no puede usarse en la app de WhatsApp. Recepción sigue con su número actual.
+- Política de Meta (desde el 15-ene-2026): prohibidos los asistentes de IA de propósito general. El bot solo
+  trata temas de la clínica; fuera de tema → texto fijo + menú.
+- Número, token, App Secret e id de plantilla van por configuración del agente; el código no cambia entre entornos.
+- Pasos de alta y tareas del desarrollador: `docs/WHATSAPP-SETUP.md`.
 
-**Estado de conversación (O7):** en memoria (Caffeine) por teléfono, TTL 30 min: paso actual,
-paciente identificado, selección parcial, `handoffUntil`.
+**API interna (Java, `com.bellidental.bot`)**
+- Autenticación: header `X-Bot-Key` = `application.bot.api-key` (variable de entorno). Un filtro en `security`
+  autentica como `bot_whatsapp` con la autoridad `BOT` (en código; sin cambios en la semilla). `/api/v1/bot/**`
+  exige `BOT` y la clave no sirve en ningún otro endpoint. Caddy no expone `/api/v1/bot/**`.
+- Pertenencia: toda operación sobre una cita recibe `phone` y valida que el paciente de la cita tenga ese
+  `phone_e164`; si no → 404.
+- Usa `PatientDirectory`, `AppointmentScheduler`, `ProfessionalDirectory`, precios de `treatment_catalog` y
+  `application.clinic.*`. **Nunca** módulos clínicos ni cobros (RNF03). Respuestas con `ApiResponse`.
+- Configuración nueva: `application.bot.public-treatments` (códigos de `treatment_catalog` con precio público),
+  `application.bot.urgent-specialty-id`, `application.bot.limits.*` (D-9), `application.clinic.reception-whatsapp`,
+  `application.clinic.after-hours-phone`, `application.bot.privacy-notice-version`. Sin cambios de esquema
+  (V13 crea `privacy_consents` y `appointment_reminders` tal como están en `schema.dbml`).
 
-**015 — Núcleo**
-- Aviso de privacidad (RF10): si no hay `privacy_consents` para el teléfono con la versión vigente,
-  primero se envía el aviso con botones *Acepto / No acepto*. Sin aceptar no se procesa nada más.
-  Al aceptar se guarda (con `patient_id` si se identifica).
-- Menú (lista interactiva): Horarios · Precios y formas de pago · Agendar · Reprogramar ·
-  Hablar con recepción.
-- Info (RF11): horarios y formas de pago de configuración; precios referenciales de
-  `treatment_catalog` activos (los marcados como públicos o una lista en configuración).
-- Derivar (RF14, D-3): texto libre no reconocido, palabras clínicas (dolor, sangrado, receta…), saldo,
-  paciente no registrado o "hablar con recepción" → mensaje con el horario y el enlace
-  `https://wa.me/<número de recepción>` (configuración) para escribir a la secretaria; `handoffUntil`
-  = +4 h (el bot no responde a ese número salvo que elija una opción del menú). Sin bandeja en el
-  sistema ni tablas nuevas.
-- Identificación: pacientes activos con ese `phone_e164`. 0 → derivar (paciente nuevo).
-  1 → "¿La cita es para Juan P.?" Sí/No. Varios → pedir cédula y validar que pertenezca al grupo.
+| Método y ruta | Uso | Tarea |
+|---|---|---|
+| `GET /bot/consents?phone` | ¿aceptó la versión vigente del aviso? | 015a |
+| `POST /bot/consents` `{phone, patientId?}` | guarda la aceptación | 015a |
+| `GET /bot/info` | horarios, formas de pago, enlace de recepción, teléfono fuera de horario, precios públicos | 015a |
+| `GET /bot/patients?phone` | pacientes activos del número: `{patientId, displayName: "Juan P."}` | 015a |
+| `POST /bot/patients/verify` `{phone, idNumber}` | desambigua por cédula dentro de ese grupo | 015a |
+| `GET /bot/specialties` · `GET /bot/professionals?specialtyId` | opciones para agendar | 016a |
+| `GET /bot/availability/days?specialtyId&professionalId?` | próximos 14 días con huecos | 016a |
+| `GET /bot/availability?specialtyId&professionalId?&date` | huecos del día (máx. 10) | 016a |
+| `GET /bot/urgent-slots` | 3 primeros huecos de hoy o mañana en la especialidad de urgencias (`noSlotsToday` = fuera de horario) | 016a |
+| `GET /bot/appointments?phone&patientId` | citas activas futuras del paciente | 016a |
+| `POST /bot/appointments` `{phone, patientId, specialtyId, professionalId, startAt}` | crea `PENDING`, `source=BOT`; 409 `APPOINTMENT_OVERLAP` o `BOT_LIMIT_REACHED` | 016b |
+| `POST /bot/appointments/{id}/reschedule` `{phone, startAt}` | reprograma; 409 `BOT_TOO_LATE` a menos de 2 h | 016b |
+| `POST /bot/appointments/{id}/cancel` · `/confirm` `{phone}` | cancelar (D-10) o confirmar | 016b |
+| `GET /bot/reminders/due` | recordatorios `PENDING` con `scheduled_at ≤ now` | 017a |
+| `POST /bot/reminders/{id}/sent` `{waMessageId}` · `/failed` | resultado del envío | 017a |
+| `POST /bot/reminders/response` `{waMessageId, response}` | respuesta del botón | 017a |
 
-**016 — Agendar (RF12) y reprogramar (RF15)**
-- Agendar: especialidad → profesional (o "el primero disponible") → día (próximos 14 días con huecos)
-  → hora (máx. 10 opciones) → confirmar. Crea cita `source=BOT`, `PENDING`. Si al confirmar el hueco
-  ya se ocupó (409), se avisa y se ofrecen otros.
-- Límites del bot (D-9), configurables en `application.whatsapp.limits.*` y validados en el código:
-  - Cita **activa** = `status IN (PENDING, CONFIRMED)` y `start_at > now`. No cuentan las CANCELLED,
-    ATTENDED, NO_SHOW ni RESCHEDULED (la cita que reemplaza a una reprogramada sí cuenta).
-  - Máx. 1 cita activa creada por el bot por paciente y especialidad (limpieza y ortodoncia pueden
-    convivir).
-  - Máx. N citas activas creadas por el bot por teléfono, sumando todos los pacientes de ese número
-    (por defecto 3), para que un número no acapare la agenda.
-  - Al superar un límite: se explica y se deriva a recepción. Recepción no tiene estos límites.
-- Reprogramar: lista las citas futuras PENDING/CONFIRMED del paciente → elige → huecos del mismo
-  profesional y especialidad → confirma → usa la operación de reprogramar de la agenda (original
-  `RESCHEDULED`, nueva con `rescheduled_from_id`, `source=BOT`). No se permite con menos de 2 h de
-  anticipación (D-10): se deriva.
-- Mensajes con fecha en español y hora local ("martes 14 de octubre, 10:30").
+**Agente (Python, `../bellidental-agent`)** — repo propio con su `CLAUDE.md`/`GEMINI.md`, como el frontend.
+```
+bellidental-agent/
+  app/
+    main.py        FastAPI: GET /webhook (hub.verify_token), POST /webhook (firma), GET /health
+    config.py      variables de entorno
+    whatsapp/      envío (texto, botones, listas, plantillas) y verificación de X-Hub-Signature-256
+    backend/       cliente de /api/v1/bot/* con X-Bot-Key
+    dialog/        máquina de estados de la conversación y manejadores por flujo
+    nlu/           interfaz classify(text, context) -> Interpretation; un adaptador por proveedor
+    messages/      textos en español y fechas ("martes 14 de octubre, 10:30")
+    reminders/     job cada 5 min
+  tests/
+  Dockerfile
+```
+Recorrido de cada mensaje:
+1. Verificar la firma; ignorar duplicados (`message.id`).
+2. Filtros fijos, sin IA: ¿aceptó el aviso? ¿hay derivación activa? ¿es un botón o una lista? → si es botón o
+   lista, va directo a la máquina de estados.
+3. Texto libre → NLU: `{intent, slots: {specialty, treatment, dateHint, timeHint}}`.
+4. La máquina de estados decide el paso, pide lo que falta y consulta la API interna.
+5. Agendar, reprogramar o cancelar solo tras el botón *Confirmar*. Precios y horas los escribe el código con los
+   datos de la API; la IA nunca inventa una cifra.
 
-**017 — Recordatorios (RF13)**
-- Al crearse una cita activa: `appointment_reminders` `DAY_BEFORE`, `scheduled_at` = día anterior 09:00
-  local. Si ese momento ya pasó, no se crea (el del mismo día está fuera).
-- Al cancelar/reprogramar/no-show: el recordatorio PENDING pasa a `CANCELLED`; la cita nueva crea el suyo.
-- Job cada 5 min: PENDING con `scheduled_at ≤ now` → envía plantilla aprobada por Meta (categoría
-  *utility*) con botones *Confirmar / Cancelar / Reprogramar* [D-2] → `SENT` + `wa_message_id`; error →
-  `FAILED` (1 reintento).
-- Respuesta (por `wa_message_id`), siempre se guarda en el recordatorio (`RESPONDED`, `response`,
-  `responded_at`) (D-2): Confirmar → `CONFIRMED` y cita `CONFIRMED`; Cancelar → `CANCELLED` y cita
-  `CANCELLED` (libera el hueco); Reprogramar → `RESCHEDULED` y se abre el flujo de 016 (si el paciente lo
-  abandona, la cita sigue como estaba).
-- Cancelar o reprogramar por bot solo hasta **2 h antes** de la cita (D-10); después → se deriva.
-Unit (todo el bot): máquina de pasos, identificación por teléfono, derivación, cálculo de
-`scheduled_at`, manejo de respuesta, verificación de firma. Sin `*IT` (no es módulo crítico).
+| Intención | Acción |
+|---|---|
+| `HOURS`, `PRICE` | texto armado desde `/bot/info`; precio del catálogo + "valor referencial; el definitivo lo da el odontólogo tras la valoración"; tratamiento no reconocido → lista de precios públicos |
+| `BOOK`, `RESCHEDULE`, `CANCEL`, `CONFIRM` | entra al flujo de 016c/016d con los datos extraídos; pide lo que falte |
+| `URGENT` | D-21: `/bot/urgent-slots` → elige y confirma → cita; fuera de horario además el teléfono de la doctora; siempre el texto fijo de emergencia |
+| `CLINICAL`, `BALANCE`, `HUMAN` | derivar |
+| `OTHER` (fuera de tema) | texto fijo "Solo puedo ayudarte con citas e información de Bellidental" + menú |
+| sin reconocer dos veces seguidas | derivar |
 
-### 4.12 Respaldos y exportación — tarea 018 (RNF04)
-- Compose de despliegue con `postgres:16` (D-11). Servicio `backup` (imagen postgres:16 + cron) con la política de §1; script de
-  restauración `scripts/restore.sh`.
+Texto fijo de emergencia (D-21): "Si tiene hinchazón que le dificulte respirar o tragar, fiebre alta o un sangrado
+que no se detiene, acuda a emergencias o llame al 911." El bot nunca da consejo médico.
+
+**NLU (D-20)**: proveedor por elegir al llegar a 016e (interfaz intercambiable; adaptador para la API compatible con OpenAI). Salida estructurada validada
+(pydantic). Al LLM solo van el texto del mensaje, el paso actual y los últimos mensajes de la conversación; nunca
+nombre, cédula ni historial. Proveedor que no entrene con los datos de la API y con términos de tratamiento de
+datos. Si el LLM falla o tarda más de 8 s → se muestra el menú: el bot funciona sin IA.
+
+**Estado de conversación (O7)**: en memoria del agente, por teléfono, TTL 30 min: paso actual, paciente
+identificado, selección parcial, últimos mensajes y `handoffUntil`. Una sola instancia.
+
+**015a (Java) — API base**: V13; filtro `X-Bot-Key`; consentimiento, info e identificación.
+**015b–015c (Python) — núcleo del agente**
+- Aviso de privacidad (RF10): sin consentimiento vigente para el teléfono, primero el aviso (nombra a Meta, al
+  proveedor del VPS y al de IA) con botones *Acepto / No acepto*. Sin aceptar no se procesa nada más.
+- Menú (lista interactiva): Horarios · Precios y formas de pago · Agendar · Reprogramar · Hablar con recepción.
+- Derivar (RF14): mensaje con el horario y el enlace `https://wa.me/<recepción>`; `handoffUntil` = +4 h (el bot
+  no responde a ese número salvo que elija una opción del menú). Sin bandeja ni tablas nuevas.
+- Identificación: 0 pacientes con ese teléfono → derivar (paciente nuevo). 1 → "¿La cita es para Juan P.?" Sí/No.
+  Varios → pedir cédula y validarla con `/bot/patients/verify`.
+
+**016a–016b (Java) / 016c–016d (Python) — agendar (RF12) y reprogramar (RF15)**
+- Agendar: especialidad → profesional (o "el primero disponible") → día (próximos 14 días con huecos) → hora
+  (máx. 10 opciones) → confirmar. Si al confirmar el hueco ya se ocupó (409), se avisa y se ofrecen otros.
+- Límites del bot (D-9), configurables y validados en Java:
+  - Cita **activa** = `status IN (PENDING, CONFIRMED)` y `start_at > now`. No cuentan CANCELLED, ATTENDED, NO_SHOW
+    ni RESCHEDULED (la cita que reemplaza a una reprogramada sí cuenta).
+  - Máx. 1 cita activa creada por el bot por paciente y especialidad.
+  - Máx. N citas activas creadas por el bot por teléfono, sumando sus pacientes (por defecto 3).
+  - Al superar un límite: se explica y se deriva. Recepción no tiene estos límites.
+- Reprogramar: citas activas del paciente → elige → huecos del mismo profesional y especialidad → confirma →
+  operación de reprogramar de la agenda (original `RESCHEDULED`, nueva con `rescheduled_from_id`; conserva el `source` de la original).
+  A menos de 2 h (D-10) → se deriva.
+
+**016e (Python) — NLU**: intenciones y datos de la tabla anterior, urgencia, precios y fuera de tema.
+
+**017a (Java) / 017b (Python) — recordatorios (RF13)**
+- Java, al crearse una cita activa (evento de agenda): `appointment_reminders` `DAY_BEFORE`, `scheduled_at` = día
+  anterior 09:00 local; si ya pasó, no se crea. Al cancelar/reprogramar/no-show: el `PENDING` pasa a `CANCELLED`;
+  la cita nueva crea el suyo.
+- Agente, job cada 5 min: `GET /bot/reminders/due` → envía la plantilla `recordatorio_cita` (*utility*) con
+  botones *Confirmar / Cancelar / Reprogramar* → `sent` con `wa_message_id`; error → `failed` (1 reintento).
+- Respuesta (por `wa_message_id`), siempre guardada (`RESPONDED`, `response`, `responded_at`) (D-2): Confirmar →
+  cita `CONFIRMED`; Cancelar → cita `CANCELLED`; Reprogramar → `RESCHEDULED` y se abre el flujo de 016d (si lo
+  abandona, la cita sigue igual). Cancelar o reprogramar solo hasta 2 h antes (D-10); después → se deriva.
+
+**Tests**: Java, un `*IT` por tarea con endpoints (`BotApiIT`, `BotAppointmentIT`, `BotReminderIT`), según
+`testing/SKILL.md`. Python (pytest): solo unit tests de la máquina de estados y de la verificación de firma, con el
+backend y el LLM simulados; máx. 4 por tarea; nunca llamadas reales al LLM ni a Meta. El conjunto de evaluación
+del NLU queda como recomendación (D-23).
+
+### 4.12 Despliegue en VPS, respaldos y exportación — tarea 018 (RNF04)
+- `docker-compose` de producción con `caddy`, `frontend`, `backend`, `agent`, `postgres:16` (D-11) y `backup`;
+  `Caddyfile` con los dominios de §1 y el bloqueo de `/api/v1/bot/**`.
+- Servicio `backup` (imagen postgres:16 + cron): `pg_dump -Fc` diario, retención 30 días en el VPS y copia cifrada
+  a Google Drive con `rclone` (D-18). Script `scripts/restore.sh` documentado, sin prueba de restauración.
 - `GET /admin/export` (ADMIN): ZIP con CSV por tabla (incluye `*_aud`), generado en streaming.
-- Doc `docs/OPERATIONS.md`: instalar, respaldar, restaurar, exportar, rotar el secreto JWT.
+- Doc `docs/OPERATIONS.md`: instalar en el VPS, dominio y HTTPS, firewall, respaldar, restaurar, exportar, rotar
+  secretos (JWT, `X-Bot-Key`, token de WhatsApp).
 Unit: escritor CSV (escapes, UTF-8, cabeceras).
 
 ### 4.13 Cuentas de acceso para profesionales — **posterior al MVP** (D-13)
@@ -489,8 +570,8 @@ quitar RECORD_* de ADMIN en la semilla (hoy ADMIN = todos).
 |---|---|---|
 | D-1 | `professional_schedules`: semanal (planta) y por fecha (ocasionales), excepciones con `available=false` | `schema.dbml`, §4.3 |
 | D-2 | Botón Reprogramar en el recordatorio; la respuesta siempre se guarda (`RESCHEDULED` en el CHECK) | `schema.dbml`, §4.11 |
-| D-3 | Cloud API sin verificación de empresa (producción) + número de prueba (desarrollo). Número del bot exclusivo; derivar = enlace wa.me de recepción | §4.11 |
-| D-4 | Servidor = PC de recepción, con las mitigaciones de §1 | §1 |
+| D-3 | Cloud API sin verificación de empresa (producción) + número de prueba (desarrollo). Número del bot exclusivo; derivar = enlace wa.me de recepción | §4.11, `WHATSAPP-SETUP.md` |
+| D-4 | ~~Servidor = PC de recepción~~ — reemplazada por D-17 | — |
 | D-5 | `record_number` = `HC-000001` provisional hasta confirmar si es la cédula | §4.2 |
 | D-6 | `closed_at` = al completar; corrección por anulación + registro, cabecera auditada por Envers | §4.4 |
 | D-7 | NO_SHOW manual en el MVP | §4.3 |
@@ -503,6 +584,13 @@ quitar RECORD_* de ADMIN en la semilla (hoy ADMIN = todos).
 | D-14 | Odontograma completo: simbología en `dental_condition_symbols`, alcance SPAN para prótesis, categoría periodontal y rango de grado | `schema.dbml`, §4.5 |
 | D-15 | appointments lee el vínculo cita→atención con EncounterRepository (solo lectura) para evitar el ciclo con clinical | §4.3 |
 | D-16 | Reemplazar los ítems de una receta DRAFT borra sus filas de `prescription_items`; es la única excepción a «sin DELETE en datos clínicos», porque un borrador nunca se entregó al paciente. Los ítems de una receta ISSUED nunca se borran | §4.7 |
+| D-17 | Servidor = VPS en la nube con Docker Compose y Caddy. VPS, dominio, Meta, proveedor de IA y Drive a nombre de la clínica al implantar (temporalmente los paga el desarrollador). Proveedores = encargados del tratamiento | §1, `CONTEXT.md §8` |
+| D-18 | Respaldos: `pg_dump` diario en el VPS (30 días) + copia cifrada en Google Drive de la clínica. Solo dos copias; restauración documentada, sin prueba en el MVP | §1, §4.12 |
+| D-19 | Bot híbrido: agente Python (WhatsApp, conversación, NLU) sin acceso a la BD + API interna Java `/api/v1/bot/*` con clave de servicio, que aplica las reglas y es la única que escribe; escrituras solo tras *Confirmar* | §4.11 |
+| D-20 | NLU con un LLM por API, interfaz intercambiable; al LLM solo el texto del mensaje (sin nombre, cédula ni historial); proveedor sin entrenamiento con datos de la API; sin IA el bot cae al menú | §4.11 |
+| D-21 | Dolor o urgencia: 3 primeros huecos de hoy o mañana en la especialidad de urgencias + texto fijo de emergencia; fuera de horario, además el teléfono de la doctora titular; sin consejo médico. Reemplaza "dolor → derivar" | §4.11 |
+| D-22 | Número del bot = chip prepago dedicado (no un número personal ni el de recepción). Límites confirmados: 250 destinatarios/24 h por portafolio, máx. 2 números | §4.11, `WHATSAPP-SETUP.md` |
+| D-23 | Conjunto de evaluación del NLU (precisión por intención, tareas completadas, derivaciones, costo): fuera del MVP, queda como recomendación de la tesis | `MVP-SCOPE.md` |
 
 **Pendientes:**
 | ID | Decisión | Propuesta | Afecta |
@@ -510,3 +598,5 @@ quitar RECORD_* de ADMIN en la semilla (hoy ADMIN = todos).
 | D-5b | Confirmar con la clínica si el N° de HC es la cédula | — | 005 |
 | D-14b | Odontóloga: ¿CROWN cuenta como O en CPO? ¿Corona/prótesis por hacer = OTHER rojo? | CROWN = O/o; OTHER rojo | 009 |
 | D-14c | Odontóloga: ¿caries tratada = obturación (FILLING) y extracción indicada realizada = perdido por caries (MISSING_CARIES)? | sí (CARIES→FILLING, EXTRACTION→MISSING_CARIES) | 010b |
+| D-20b | Proveedor y modelo de IA para el NLU (se evaluarán opciones baratas, incluidos modelos chinos alojados fuera de China) | Decidir en 016e | 016e |
+| D-21b | ¿Avisar a recepción cuando el bot agenda una urgencia? Hoy no hay bandeja: la cita aparece en la agenda con `source=BOT` | No avisar en el MVP | 016a |

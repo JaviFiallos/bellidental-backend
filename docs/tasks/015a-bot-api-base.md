@@ -166,9 +166,6 @@ Estado: APROBADO
    `PatientDirectory` y `TreatmentDirectory`.
 4. `./mvnw -q clean verify` corrido por Claude: surefire 89/0/0/0, failsafe 52/0/0/0. El total incluye los 3 casos de
    `BotAvailabilityIT` de la 016a, que ya está en el mismo árbol de trabajo.
-5. Observación: V13 añade cosas que `schema.dbml` no tiene:
-   - `CHECK` de `kind`, `status` y `response`;
-   - el índice único parcial `(appointment_id, kind) WHERE status='PENDING'`.
-
-   Se aceptan, porque refuerzan reglas que ya existen (D-2 y la regla de la 017a de un solo recordatorio pendiente).
-   Hay que reflejarlos en `schema.dbml` en el próximo cambio de documentación.
+5. V13 incluye los `CHECK` de `kind`, `status` y `response` y el índice único parcial `(appointment_id, kind) WHERE
+   status='PENDING'`. Ambos están en las notas SQL de `schema.dbml`: la migración sigue el esquema.
+   (Corrige una observación anterior que los daba por extras.)
