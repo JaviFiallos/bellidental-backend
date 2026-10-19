@@ -112,7 +112,7 @@ viene de la especialidad. Cualquier paso extra en consulta empeora la métrica q
 | PC6 | Historial no disponible (sin cita) | Historial inmediato de cualquier paciente (RF06) |
 | PC7 | Agenda alimentada por canales paralelos | Agenda única con `EXCLUDE`; bot y Google leen de ella |
 | PC8 | Secretaria sobrecargada | Bot absorbe info, agendamiento, confirmaciones |
-| BN2 | 033 a mano | Impresión del 033 — **fuera del MVP** (RF09) |
+| BN2 | 033 a mano | Vista e impresión del 033 (RF09, en el MVP desde el 2026-10-19) |
 | BN5 | Excel sin credenciales ni trazas | Usuarios individuales + Envers (RNF01, RNF02) |
 | BN7 | Documentos sin rótulo | "CONFIDENCIAL" en todo PDF |
 | BN8 | WhatsApp sin aviso de privacidad | Aviso con aceptación explícita (RF10) |

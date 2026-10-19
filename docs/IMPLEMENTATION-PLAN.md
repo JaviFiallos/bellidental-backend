@@ -86,6 +86,7 @@ tests de reglas puras). La columna `*IT` y los tests listados en §4 son orienta
 | 010b | Tratamientos ligados al odontograma (hallazgo + DONE automático) | — | 010a | — |
 | 011a | Recetas: medicamentos, presets y ciclo DRAFT → ISSUED | V10 | 008 | `PrescriptionFlowIT` |
 | 011b | Receta PDF | — | 011a | — |
+| 011c | Historial clínico `clinical-summary` (RF06, RF09) | — | 010a, 011a | `ClinicalSummaryIT` |
 | 012 | Cobros + comprobante | V11 | 010 | — |
 | 013 | Auditoría Envers | V12 | 012 | — (añade un caso a `EncounterFlowIT`) |
 | 014 | Google Calendar (sistema → Google) | — | 006 | — |
@@ -102,7 +103,7 @@ tests de reglas puras). La columna `*IT` y los tests listados en §4 son orienta
 | 018 | Despliegue en VPS, respaldos y exportación | — | todo | — |
 
 (007 y 008 van separadas: CIE-10 en `V7__icd10_catalog.sql` y atención en `V7_1__encounters.sql`, para no renumerar 009+.)
-(El historial inmediato `GET /patients/{id}/clinical-summary` de §4.4 sale de la 008: va en una tarea propia después de la 011.)
+(El historial inmediato `GET /patients/{id}/clinical-summary` de §4.4 sale de la 008: es la tarea 011c.)
 (Las tareas del agente (015b, 015c, 016c–016e, 017b) viven en `../bellidental-agent/docs/tasks/`, con su propio
 `CLAUDE.md`/`GEMINI.md`; el contrato entre ambos es `../bellidental-agent/docs/BACKEND-API.md`.)
 (La 012 y el historial inmediato no bloquean al bot, pero sí el postest del TGA: deben estar listos antes de medir.)
@@ -256,6 +257,10 @@ por similitud de descripción. Máx. 20 resultados, activos.
 activos, medicación, odontograma vigente, tratamientos pendientes (hallazgos rojos vigentes) y
 línea de tiempo de sesiones (N° sesión, fecha, profesional, diagnósticos, procedimientos, recetas).
 Debe responder en <1 s con 1000 pacientes.
+**Ajuste (2026-10-19, tarea 011c):** módulo propio `clinicalsummary` (evita el ciclo clinical ↔ treatments/prescriptions).
+Devuelve solo la cabecera de la historia (`clinicName`, `recordNumber`, `openedAt`, `openedBy` con `licenseNumber`)
+y las sesiones (atenciones no anuladas, numeradas por `startAt`; recetas solo ISSUED). Antecedentes, odontograma y
+pendientes salen de sus endpoints. Alimenta la ficha clínica y la impresión del 033 (RF09, ahora en el MVP).
 
 Unit: reglas de apertura/completado, detección código vs texto, numeración de sesiones.
 IT `EncounterFlowIT`: check-in → abrir → diagnóstico → completar → cita ATTENDED;

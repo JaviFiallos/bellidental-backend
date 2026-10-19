@@ -33,6 +33,8 @@ Contexto: `docs/CONTEXT.md`. Plan por módulo: `docs/IMPLEMENTATION-PLAN.md`.
 - RF06 Historial inmediato de cualquier paciente.
 - RF07 Agenda única por profesional, colores, sin cruces (EXCLUDE en BD).
 - RF08 Pagos con abono; saldo calculado, nunca almacenado; comprobante interno (no SRI).
+- RF09 Vista e impresión del 033 con su numeración y distribución (entra al MVP el 2026-10-19). El backend da los
+  datos (`clinical-summary`, tarea 011c); la hoja se arma e imprime en el frontend (HTML A4).
 - RF10 Aviso de privacidad con aceptación. RF11 Horarios y precios.
 - RF12 Agendar por WhatsApp (solo pacientes registrados). RF13 Recordatorio con botones Confirmar/Cancelar.
 - RF14 Derivar a recepción las preguntas clínicas, saldos o lo no reconocido. Dolor o urgencia: se ofrece el primer
@@ -49,7 +51,7 @@ Contexto: `docs/CONTEXT.md`. Plan por módulo: `docs/IMPLEMENTATION-PLAN.md`.
   (BN10) y el bot sigue atendiendo. RNF06 Registro rápido en consulta.
 
 ## Fuera del MVP (no implementar)
-RF09 impresión del 033 · RF16 citas por terceros · RNF07 firma
+RF16 citas por terceros · RNF07 firma
 electrónica · bot para pacientes nuevos · facturación SRI · UI de usuarios/permisos ·
 recordatorio del mismo día · sincronización Google → sistema · pruebas de restauración de respaldos ·
 conjunto de evaluación del NLU (queda como recomendación de la tesis, D-23).

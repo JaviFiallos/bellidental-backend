@@ -4,6 +4,7 @@ import com.bellidental.persistence.entity.EncounterDiagnosis;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
@@ -15,4 +16,6 @@ public interface EncounterDiagnosisRepository extends JpaRepository<EncounterDia
     boolean existsByEncounterIdAndIcd10IdAndVoidedAtIsNull(UUID encounterId, Long icd10Id);
 
     long countByEncounterIdAndVoidedAtIsNull(UUID encounterId);
+
+    List<EncounterDiagnosis> findByEncounterIdInAndVoidedAtIsNullOrderByCreatedAtAsc(Collection<UUID> encounterIds);
 }

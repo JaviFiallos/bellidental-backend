@@ -225,7 +225,8 @@ public class EncounterService {
                 encounter.getProfessionalId(),
                 encounter.getStatus(),
                 encounter.getClosedAt(),
-                encounter.getVoidedAt() != null
+                encounter.getVoidedAt() != null,
+                encounter.getStartAt()
         );
     }
 

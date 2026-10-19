@@ -1,5 +1,6 @@
 package com.bellidental.professionals;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -10,6 +11,8 @@ import java.util.UUID;
 public interface ProfessionalDirectory {
 
     Optional<ProfessionalSummary> findById(UUID id);
+
+    List<ProfessionalSummary> findByIds(Collection<UUID> ids);
 
     List<ProfessionalSummary> findActive();
 

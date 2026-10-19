@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -40,6 +41,16 @@ public class ProfessionalDirectoryImpl implements ProfessionalDirectory {
     public Optional<ProfessionalSummary> findById(UUID id) {
         return professionalRepository.findByIdAndDeletedAtIsNull(id)
                 .map(this::toSummary);
+    }
+
+    @Override
+    public List<ProfessionalSummary> findByIds(Collection<UUID> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return List.of();
+        }
+        return professionalRepository.findAllById(ids).stream()
+                .map(this::toSummary)
+                .toList();
     }
 
     @Override

@@ -50,7 +50,13 @@ public class ClinicalRecordService {
     }
 
     private ClinicalRecordSummary toSummary(ClinicalRecord record) {
-        return new ClinicalRecordSummary(record.getId(), record.getPatient().getId(), record.getRecordNumber());
+        return new ClinicalRecordSummary(
+                record.getId(),
+                record.getPatient().getId(),
+                record.getRecordNumber(),
+                record.getOpenedAt(),
+                record.getOpenedBy() != null ? record.getOpenedBy().getId() : null
+        );
     }
 
     private ClinicalRecordResponse toResponse(ClinicalRecord record, List<MedicalHistoryEntry> entries) {
@@ -97,7 +103,13 @@ public class ClinicalRecordService {
         }
 
         ClinicalRecordResponse response = open(patientId, professionalId);
-        return new ClinicalRecordSummary(response.id(), response.patientId(), response.recordNumber());
+        return new ClinicalRecordSummary(
+                response.id(),
+                response.patientId(),
+                response.recordNumber(),
+                response.openedAt(),
+                response.openedBy()
+        );
     }
 
     @Transactional(readOnly = true)

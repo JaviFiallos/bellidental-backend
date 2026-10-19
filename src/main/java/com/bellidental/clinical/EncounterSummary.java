@@ -12,5 +12,6 @@ public record EncounterSummary(
         UUID professionalId,
         EncounterStatus status,
         OffsetDateTime closedAt,
-        boolean voided
+        boolean voided,
+        OffsetDateTime startAt
 ) {}
