@@ -22,4 +22,6 @@ public interface AppointmentScheduler {
     void cancel(UUID appointmentId);
 
     void markAttended(UUID appointmentId);
+
+    List<AppointmentSummary> findActiveByPatient(UUID patientId);
 }

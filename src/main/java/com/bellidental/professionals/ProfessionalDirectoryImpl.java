@@ -7,12 +7,14 @@ import com.bellidental.persistence.repository.ProfessionalSpecialtyRepository;
 import com.bellidental.persistence.repository.SpecialtyRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 @Component
+@Transactional(readOnly = true)
 @RequiredArgsConstructor
 public class ProfessionalDirectoryImpl implements ProfessionalDirectory {
 
@@ -64,5 +66,22 @@ public class ProfessionalDirectoryImpl implements ProfessionalDirectory {
     public Optional<SpecialtySummary> findSpecialty(Long specialtyId) {
         return specialtyRepository.findById(specialtyId)
                 .map(s -> new SpecialtySummary(s.getId(), s.getName(), s.getDefaultDurationMinutes(), s.isActive()));
+    }
+
+    @Override
+    public List<SpecialtySummary> findActiveSpecialties() {
+        return specialtyRepository.findByActiveTrueOrderByName().stream()
+                .map(s -> new SpecialtySummary(s.getId(), s.getName(), s.getDefaultDurationMinutes(), s.isActive()))
+                .toList();
+    }
+
+    @Override
+    public List<ProfessionalSummary> findActiveBySpecialty(Long specialtyId) {
+        List<ProfessionalSpecialty> specs = professionalSpecialtyRepository.findBySpecialtyIdAndActiveTrue(specialtyId);
+        return specs.stream()
+                .map(ProfessionalSpecialty::getProfessional)
+                .filter(p -> p.isActive() && p.getDeletedAt() == null)
+                .map(this::toSummary)
+                .toList();
     }
 }

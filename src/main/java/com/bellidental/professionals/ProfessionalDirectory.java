@@ -18,4 +18,8 @@ public interface ProfessionalDirectory {
     Optional<SpecialtySummary> findSpecialty(Long specialtyId);
 
     Optional<ProfessionalSummary> findByUserId(UUID userId);
+
+    List<SpecialtySummary> findActiveSpecialties();
+
+    List<ProfessionalSummary> findActiveBySpecialty(Long specialtyId);
 }

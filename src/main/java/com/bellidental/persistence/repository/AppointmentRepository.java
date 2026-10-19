@@ -36,4 +36,18 @@ public interface AppointmentRepository extends JpaRepository<Appointment, UUID> 
         return findOverlappingWithStatuses(professionalId, from, to,
                 EnumSet.of(AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED, AppointmentStatus.ATTENDED));
     }
+
+    @Query("SELECT a FROM Appointment a WHERE a.patientId = :patientId " +
+            "AND a.status IN :activeStatuses AND a.startAt > :now ORDER BY a.startAt ASC")
+    List<Appointment> findActiveFutureByPatient(
+            @Param("patientId") UUID patientId,
+            @Param("activeStatuses") Collection<AppointmentStatus> activeStatuses,
+            @Param("now") OffsetDateTime now
+    );
+
+    default List<Appointment> findActiveFutureByPatient(UUID patientId, OffsetDateTime now) {
+        return findActiveFutureByPatient(patientId,
+                EnumSet.of(AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED),
+                now);
+    }
 }

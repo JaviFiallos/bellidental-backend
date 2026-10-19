@@ -9,6 +9,7 @@ import com.bellidental.appointments.api.dto.CreateAppointmentRequest;
 import com.bellidental.appointments.api.dto.RescheduleAppointmentRequest;
 import com.bellidental.persistence.entity.Appointment;
 import com.bellidental.persistence.repository.AppointmentRepository;
+import com.bellidental.shared.time.ClinicClock;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -25,6 +26,7 @@ public class AppointmentSchedulerImpl implements AppointmentScheduler {
     private final AppointmentService appointmentService;
     private final AvailabilityService availabilityService;
     private final AppointmentRepository appointmentRepository;
+    private final ClinicClock clinicClock;
 
     @Override
     public Optional<AppointmentSummary> findById(UUID appointmentId) {
@@ -63,6 +65,13 @@ public class AppointmentSchedulerImpl implements AppointmentScheduler {
     @Override
     public void markAttended(UUID appointmentId) {
         appointmentService.markAttended(appointmentId);
+    }
+
+    @Override
+    public List<AppointmentSummary> findActiveByPatient(UUID patientId) {
+        return appointmentRepository.findActiveFutureByPatient(patientId, clinicClock.now()).stream()
+                .map(this::toSummary)
+                .toList();
     }
 
     private AppointmentSummary toSummary(Appointment appointment) {
