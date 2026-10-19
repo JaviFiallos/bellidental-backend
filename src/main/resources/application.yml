@@ -40,8 +40,25 @@ application:
     jwt:
       secret: ${JWT_SECRET:3d8f7a2e1b5c4d9f0e6a3b8c2d7f1e4a5b9c0d3e6f2a7b8c1d4e5f9a0b3c6d9}
       expiration: ${JWT_EXPIRATION:86400000}  # 24 horas en ms
+  bot:
+    api-key: ${BOT_API_KEY:}
+    privacy-notice-version: "v1"
+    public-treatments:
+      - D0150
+      - D1110
+      - D2330
+    urgent-specialty-id: 1
   clinic:
     name: Bellidental Clínica Dental   # provisional
     address: Dirección por definir      # provisional
     phone: "0000000000"                 # provisional
     zone: America/Guayaquil
+    hours:
+      - "Lunes a viernes 09:00–13:00 y 15:00–19:00"
+      - "Sábados 09:00–13:00"
+    payment-methods:
+      - "Efectivo"
+      - "Transferencia"
+    reception-whatsapp: "593000000000"
+    after-hours-phone: "593000000000"
+

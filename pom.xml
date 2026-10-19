@@ -169,6 +169,11 @@
 						</goals>
 					</execution>
 				</executions>
+				<configuration>
+					<environmentVariables>
+						<BOT_API_KEY>it-bot-key</BOT_API_KEY>
+					</environmentVariables>
+				</configuration>
 			</plugin>
 		</plugins>
 	</build>

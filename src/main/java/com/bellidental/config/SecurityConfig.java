@@ -1,5 +1,6 @@
 package com.bellidental.config;
 
+import com.bellidental.security.BotApiKeyFilter;
 import com.bellidental.security.JwtAuthenticationFilter;
 import com.bellidental.shared.response.ApiResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -19,18 +20,30 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
+import org.springframework.security.web.authentication.logout.LogoutFilter;
+
 /**
  * Configuración principal de Spring Security.
- * Arquitectura stateless con JWT — sin sesiones HTTP.
+ * Arquitectura stateless con JWT y clave de servicio para el bot.
  */
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
-@RequiredArgsConstructor
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final BotApiKeyFilter botApiKeyFilter;
     private final ObjectMapper objectMapper;
+
+    public SecurityConfig(
+            JwtAuthenticationFilter jwtAuthenticationFilter,
+            BotApiKeyFilter botApiKeyFilter,
+            ObjectMapper objectMapper
+    ) {
+        this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+        this.botApiKeyFilter = botApiKeyFilter;
+        this.objectMapper = objectMapper;
+    }
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -39,6 +52,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.POST, "/api/v1/auth/login").permitAll()
                         .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/api-docs/**", "/v3/api-docs/**").permitAll()
+                        .requestMatchers("/api/v1/bot/**").hasAuthority("BOT")
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session ->
@@ -56,6 +70,7 @@ public class SecurityConfig {
                             response.getWriter().write(objectMapper.writeValueAsString(ApiResponse.error("Acceso denegado")));
                         })
                 )
+                .addFilterBefore(botApiKeyFilter, LogoutFilter.class)
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();
     }
