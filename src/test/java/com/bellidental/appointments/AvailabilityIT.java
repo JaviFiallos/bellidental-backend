@@ -18,7 +18,9 @@ import com.bellidental.shared.enums.AppointmentStatus;
 import com.bellidental.shared.enums.DocumentType;
 import com.bellidental.shared.exception.BusinessException;
 import com.bellidental.shared.response.ApiResponse;
+import com.bellidental.support.MutableClock;
 import com.bellidental.support.TestcontainersConfiguration;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -62,6 +64,9 @@ class AvailabilityIT {
     @Autowired
     private AppointmentScheduler appointmentScheduler;
 
+    @Autowired
+    private MutableClock clock;
+
     private HttpHeaders headers;
     private UUID patientId;
     private UUID professionalId;
@@ -101,6 +106,11 @@ class AvailabilityIT {
                 .filter(ProfessionalSpecialty::isActive)
                 .findFirst().orElseThrow();
         specialtyId = ps.getSpecialty().getId();
+    }
+
+    @AfterEach
+    void tearDown() {
+        clock.reset();
     }
 
     private void createSchedule(LocalDate day) {
@@ -158,6 +168,8 @@ class AvailabilityIT {
 
     @Test
     void walkIn_noAppointmentsToday_createsWalkInCheckedIn() {
+        clock.fix(LocalDate.now(clinicZone).atTime(10, 0).atZone(clinicZone).toInstant());
+
         WalkInRequest request = new WalkInRequest(patientId, professionalId, specialtyId);
         ResponseEntity<ApiResponse<AppointmentResponse>> response = restTemplate.exchange(
                 "/api/v1/appointments/walk-in", HttpMethod.POST, new HttpEntity<>(request, headers),
