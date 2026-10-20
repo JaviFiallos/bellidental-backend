@@ -4,6 +4,7 @@ public record Icd10Response(
     Long id,
     String code,
     String description,
-    String category
+    String category,
+    String includedTerms
 ) {
 }

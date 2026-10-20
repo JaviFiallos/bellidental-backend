@@ -72,6 +72,19 @@ class Icd10SearchIT {
     }
 
     @Test
+    void search_includedTermAsOdontologa_returnsFluorosisCode() {
+        ResponseEntity<ApiResponse<List<Icd10Response>>> response =
+                search(loginAs("odontologa@bellidental.local"), "fluorosis");
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        List<Icd10Response> codes = response.getBody().getData();
+        assertThat(codes).isNotEmpty();
+        assertThat(codes.get(0).code()).isEqualTo("K00.3");
+        assertThat(codes.get(0).description()).isEqualTo("Dientes moteados");
+        assertThat(codes.get(0).includedTerms()).contains("Fluorosis dental");
+    }
+
+    @Test
     void search_codeAsSecretaria_returnsForbidden() {
         ResponseEntity<ApiResponse<List<Icd10Response>>> response =
                 search(loginAs("secretaria@bellidental.local"), "k02");

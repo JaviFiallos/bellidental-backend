@@ -31,6 +31,9 @@ public class Icd10Code {
     @Column(length = 255)
     private String category;
 
+    @Column(name = "included_terms", length = 500)
+    private String includedTerms;
+
     @Column(nullable = false)
     private boolean active = true;
 }

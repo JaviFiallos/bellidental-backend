@@ -80,6 +80,7 @@ tests de reglas puras). La columna `*IT` y los tests listados en §4 son orienta
 | 006d | Citas por paciente y adminNotes (G-4, G-5 del frontend) | — | 004, 006 | `PatientRecordApiIT` |
 | 006e | La cita trae su atención (G-1 del frontend) | — | 006, 008 | `AppointmentEncounterLinkIT` |
 | 007 | Catálogos clínicos: CIE-10, pg_trgm | V7 (`V7__icd10_catalog`) | 005 | `Icd10SearchIT` |
+| 007a | CIE-10: redacción oficial OPS y términos incluidos para la búsqueda | V14 (`V14__icd10_ops_terms`) | 007 | `Icd10SearchIT` (+1 caso) |
 | 008 | Atención clínica (encounters + diagnósticos) | V7.1 (`V7_1__encounters`) | 006, 007 | `EncounterFlowIT` |
 | 009 | Odontograma | V8 | 008 | `OdontogramFlowIT` |
 | 010a | Tratamientos: catálogo y registro en la atención | V9 | 008, 009 | `TreatmentFlowIT` |
@@ -88,8 +89,8 @@ tests de reglas puras). La columna `*IT` y los tests listados en §4 son orienta
 | 011b | Receta PDF | — | 011a | — |
 | 011c | Historial clínico `clinical-summary` (RF06, RF09) | — | 010a, 011a | `ClinicalSummaryIT` |
 | 011d | Receta PDF: diseño con la marca (logo, marca de agua, sello y firma, servicios, franja de contacto) | — | 011b | `PrescriptionPdfIT` (aserciones) |
-| 012 | Cobros + comprobante | V11 | 010 | — |
-| 013 | Auditoría Envers | V12 | 012 | — (añade un caso a `EncounterFlowIT`) |
+| 012 | Cobros + comprobante | V15 (renumerada: V13 y V14 ya existen) | 010 | — |
+| 013 | Auditoría Envers | V16 | 012 | — (añade un caso a `EncounterFlowIT`) |
 | 014 | Google Calendar (sistema → Google) | — | 006 | — |
 | 015a | Bot (Java): API interna base — V13, clave de servicio, consentimiento, info, identificación | V13 | 006 | `BotApiIT` |
 | 015b | Agente (Python): esqueleto, webhook, firma, envío, cliente del backend | — | 015a | — (pytest) |
@@ -232,6 +233,10 @@ odontológico K00–K14 completo + Z01.2 y códigos que usa la clínica de su ho
 
 **CIE-10:** `GET /icd10?query=` — si parece código (`^[A-Za-z]\d`) busca por prefijo de código; si no,
 por similitud de descripción. Máx. 20 resultados, activos.
+**CIE-10 OPS (007a, V14):** títulos con la redacción oficial en español de la OPS que usa la clínica
+(se conservan K02.5, K12.3 y Z01.2). Columna `included_terms` (términos incluidos, p. ej. «Fluorosis dental» en
+K00.3) con índice trigram: la búsqueda por texto mira `description` e `included_terms`; la descripción sigue
+corta (solo el título) en la receta, el historial y el 033. Las exclusiones («Excluye») no se guardan.
 
 **Atención:**
 - `POST /appointments/{id}/encounter` (ODONTOLOGO): solo si la cita tiene check-in y no tiene atención;
@@ -342,7 +347,7 @@ Unit: copia de preset, transición DRAFT→ISSUED, inmutabilidad, diagnóstico d
 PDF: un test que genera bytes no vacíos y contiene "CONFIDENCIAL".
 
 ### 4.8 Cobros — tarea 012 (RF08)
-Paquete `com.bellidental.billing`. Migración V11: `payments`, secuencia de comprobante
+Paquete `com.bellidental.billing`. Migración V15: `payments`, secuencia de comprobante
 (`receipt_number` = `C-000001`), CHECK `amount > 0`, REVOKE DELETE (notas SQL).
 
 Reglas:
@@ -360,7 +365,7 @@ Unit: cálculo de saldo (anulados excluidos, pago sin atención, saldo a favor),
 ### 4.9 Auditoría — tarea 013 (RNF02)
 - Envers `@Audited` en: clinical_records, medical_history_entries, encounters, encounter_diagnoses,
   dental_findings, performed_treatments, prescriptions, prescription_items, payments, appointments,
-  patients. V12 crea `revision_info` y las tablas `*_aud`.
+  patients. V16 crea `revision_info` y las tablas `*_aud`.
 - `RevisionListener` guarda `user_id` del usuario autenticado (bot → `bot_whatsapp`; jobs → null).
 - Spring Data Auditing mantiene `created_at/updated_at`.
 - `GET /audit/{entity}/{id}` (ADMIN): quién, cuándo, qué cambió.

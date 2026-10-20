@@ -16,7 +16,9 @@ public interface Icd10CodeRepository extends JpaRepository<Icd10Code, Long> {
     List<Icd10Code> findActiveByCodePrefix(@Param("prefix") String prefix);
 
     @Query(value = "SELECT * FROM icd10_codes WHERE active = true " +
-            "AND (description ILIKE '%' || :text || '%' OR description % :text) " +
-            "ORDER BY similarity(description, :text) DESC, code LIMIT 20", nativeQuery = true)
+            "AND (description ILIKE '%' || :text || '%' OR description % :text " +
+            "OR included_terms ILIKE '%' || :text || '%' OR :text <% included_terms) " +
+            "ORDER BY GREATEST(similarity(description, :text), " +
+            "word_similarity(:text, coalesce(included_terms, ''))) DESC, code LIMIT 20", nativeQuery = true)
     List<Icd10Code> findActiveByDescription(@Param("text") String text);
 }

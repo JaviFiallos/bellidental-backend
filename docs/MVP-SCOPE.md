@@ -18,8 +18,8 @@ Contexto: `docs/CONTEXT.md`. Plan por módulo: `docs/IMPLEMENTATION-PLAN.md`.
 | 9 | odontogram | V8 | RF02 |
 | 10 | treatments | V9 | RF04 |
 | 11 | prescriptions + PDF | V10 | RF04, RF05 |
-| 12 | billing | V11 | RF08 |
-| 13 | auditoría (Envers + Spring Data Auditing) | V12 | RNF02 |
+| 12 | billing | V15 | RF08 |
+| 13 | auditoría (Envers + Spring Data Auditing) | V16 | RNF02 |
 | 14 | Google Calendar (sistema → Google) | — | RF07 |
 | 15 | bot WhatsApp: API interna (Java) + agente (Python) | V13 | RF10–RF15 |
 | 16 | despliegue en VPS, respaldos y exportación | — | RNF04 |

@@ -191,6 +191,7 @@ Table icd10_codes {
   code varchar(10) [not null, unique]
   description varchar(500) [not null]
   category varchar(255)
+  included_terms varchar(500) [note: 'Términos incluidos (OPS), solo para la búsqueda']
   active boolean [not null, default: true]
 }
 Table encounter_diagnoses {
@@ -323,7 +324,7 @@ Table prescription_items {
   instructions text
 }
 
-// ---------- 10. BILLING (V11) ----------
+// ---------- 10. BILLING (V15) ----------
 Table payments {
   payment_id uuid [pk, default: `gen_random_uuid()`]
   patient_id uuid [not null]
@@ -338,7 +339,7 @@ Table payments {
   indexes { patient_id }
 }
 
-// ---------- 11. AUDIT (V12) ----------
+// ---------- 11. AUDIT (V16) ----------
 Table revision_info {
   revision_id bigint [pk, increment]
   revision_at timestamptz [not null]
@@ -424,6 +425,6 @@ Ref: privacy_consents.patient_id > patients.patient_id
 // - professional_schedules: CHECK ((weekday IS NULL) <> (specific_date IS NULL));
 //   CHECK (weekday BETWEEN 1 AND 7); CHECK (available = false OR (start_time IS NOT NULL
 //   AND end_time > start_time)). Varias filas por día = varios turnos (mañana y tarde).
-// - pg_trgm: GIN en icd10_codes.description, medications.name, treatment_catalog.name,
+// - pg_trgm: GIN en icd10_codes.description, icd10_codes.included_terms, medications.name, treatment_catalog.name,
 //   (patients.first_name || ' ' || patients.last_name); icd10_codes(code text_pattern_ops).
 // - REVOKE DELETE en tablas clínicas y payments para el usuario de la aplicación.

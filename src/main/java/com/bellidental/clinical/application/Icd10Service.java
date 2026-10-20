@@ -26,6 +26,7 @@ public class Icd10Service {
     }
 
     private Icd10Response toResponse(Icd10Code code) {
-        return new Icd10Response(code.getId(), code.getCode(), code.getDescription(), code.getCategory());
+        return new Icd10Response(code.getId(), code.getCode(), code.getDescription(), code.getCategory(),
+                code.getIncludedTerms());
     }
 }
