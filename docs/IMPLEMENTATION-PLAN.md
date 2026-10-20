@@ -87,6 +87,7 @@ tests de reglas puras). La columna `*IT` y los tests listados en §4 son orienta
 | 011a | Recetas: medicamentos, presets y ciclo DRAFT → ISSUED | V10 | 008 | `PrescriptionFlowIT` |
 | 011b | Receta PDF | — | 011a | — |
 | 011c | Historial clínico `clinical-summary` (RF06, RF09) | — | 010a, 011a | `ClinicalSummaryIT` |
+| 011d | Receta PDF: diseño con la marca (logo, marca de agua, sello y firma, servicios, franja de contacto) | — | 011b | `PrescriptionPdfIT` (aserciones) |
 | 012 | Cobros + comprobante | V11 | 010 | — |
 | 013 | Auditoría Envers | V12 | 012 | — (añade un caso a `EncounterFlowIT`) |
 | 014 | Google Calendar (sistema → Google) | — | 006 | — |

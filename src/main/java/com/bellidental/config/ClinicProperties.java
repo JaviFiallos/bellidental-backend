@@ -8,11 +8,21 @@ import java.util.List;
 @ConfigurationProperties("application.clinic")
 public record ClinicProperties(
         String name,
+        String tagline,
         String address,
         String phone,
         String zone,
         List<String> hours,
         List<String> paymentMethods,
         String receptionWhatsapp,
-        String afterHoursPhone
-) {}
+        String afterHoursPhone,
+        List<String> services,
+        Social social
+) {
+    public record Social(
+            String facebook,
+            String instagram,
+            String x,
+            String email
+    ) {}
+}

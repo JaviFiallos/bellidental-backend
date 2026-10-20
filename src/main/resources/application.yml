@@ -53,6 +53,7 @@ application:
       change-min-hours: 2
   clinic:
     name: Bellidental Clínica Dental   # provisional
+    tagline: Creamos bellas sonrisas   # provisional
     address: Dirección por definir      # provisional
     phone: "0000000000"                 # provisional
     zone: America/Guayaquil
@@ -64,4 +65,19 @@ application:
       - "Transferencia"
     reception-whatsapp: "593000000000"
     after-hours-phone: "593000000000"
-
+    services:
+      - "Odontología general"
+      - "Endodoncia"
+      - "Ortodoncia"
+      - "Resinas"
+      - "Exodoncia de cordales"
+      - "Blanqueamiento"
+      - "Prótesis"
+      - "Profilaxis"
+      - "Periodoncia"
+      - "Odontopediatría"
+    social:
+      facebook: "Bellidental"
+      instagram: "@bellidental"
+      x: ""
+      email: "contacto@bellidental.com"

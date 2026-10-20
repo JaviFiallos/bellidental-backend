@@ -40,6 +40,8 @@ import org.springframework.http.ResponseEntity;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
@@ -112,6 +114,15 @@ class PrescriptionPdfIT {
         String text = extractText(pdf);
         assertThat(text).contains("CONFIDENCIAL");
         assertThat(text).contains(patient.documentNumber());
+        assertThat(text).contains("Presente esta receta en su próxima consulta");
+        assertThat(text).contains("Sello");
+        assertThat(text).contains("Firma");
+        assertThat(text).contains("Los mejores tratamientos");
+        assertThat(text).contains("+593 00 000 0000");
+        assertThat(text).doesNotContain("Twitter");
+
+        Files.createDirectories(Path.of("target"));
+        Files.write(Path.of("target/prescription-sample.pdf"), pdf);
     }
 
     @Test
