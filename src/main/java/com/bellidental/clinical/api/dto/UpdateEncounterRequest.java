@@ -8,6 +8,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 public record UpdateEncounterRequest(
         @NotBlank String chiefComplaint,
@@ -18,10 +19,10 @@ public record UpdateEncounterRequest(
         @DecimalMin("34.0") @DecimalMax("43.0") BigDecimal temperature,
         @Min(5) @Max(60) Short respiratoryRate,
         String stomatognathicExam,
+        List<@Min(1) @Max(12) Short> stomatognathicRegions,
         @Pattern(regexp = "LEVE|MODERADA|SEVERA") String periodontalDisease,
         @Pattern(regexp = "LEVE|MODERADA|SEVERA") String fluorosis,
         @Pattern(regexp = "ANGLE_I|ANGLE_II|ANGLE_III") String malocclusion,
-        String diagnosticPlan,
-        String therapeuticPlan,
-        String educationalPlan
+        List<@Pattern(regexp = "BIOMETRIA|QUIMICA_SANGUINEA|RAYOS_X|OTROS") String> diagnosticExams,
+        String planDescription
 ) {}

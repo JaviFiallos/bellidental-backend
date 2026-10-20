@@ -15,7 +15,9 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
@@ -74,6 +76,11 @@ public class Encounter {
     @Column(name = "stomatognathic_exam")
     private String stomatognathicExam;
 
+    @JdbcTypeCode(SqlTypes.ARRAY)
+    @Column(name = "stomatognathic_regions", nullable = false, columnDefinition = "smallint[]")
+    @Builder.Default
+    private Short[] stomatognathicRegions = new Short[0];
+
     @Column(name = "periodontal_disease", length = 10)
     private String periodontalDisease;
 
@@ -83,14 +90,13 @@ public class Encounter {
     @Column(name = "fluorosis", length = 10)
     private String fluorosis;
 
-    @Column(name = "diagnostic_plan")
-    private String diagnosticPlan;
+    @JdbcTypeCode(SqlTypes.ARRAY)
+    @Column(name = "diagnostic_exams", nullable = false, columnDefinition = "varchar(20)[]")
+    @Builder.Default
+    private String[] diagnosticExams = new String[0];
 
-    @Column(name = "therapeutic_plan")
-    private String therapeuticPlan;
-
-    @Column(name = "educational_plan")
-    private String educationalPlan;
+    @Column(name = "plan_description")
+    private String planDescription;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 10)

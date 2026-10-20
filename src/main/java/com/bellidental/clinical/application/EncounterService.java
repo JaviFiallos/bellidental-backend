@@ -28,12 +28,21 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 public class EncounterService {
+
+    private static final List<String> DIAGNOSTIC_EXAM_ORDER = List.of(
+            "BIOMETRIA",
+            "QUIMICA_SANGUINEA",
+            "RAYOS_X",
+            "OTROS"
+    );
 
     private final EncounterRepository encounterRepository;
     private final EncounterDiagnosisRepository diagnosisRepository;
@@ -90,12 +99,12 @@ public class EncounterService {
         encounter.setTemperature(request.temperature());
         encounter.setRespiratoryRate(request.respiratoryRate());
         encounter.setStomatognathicExam(request.stomatognathicExam());
+        encounter.setStomatognathicRegions(normalizeRegions(request.stomatognathicRegions()));
         encounter.setPeriodontalDisease(request.periodontalDisease());
         encounter.setFluorosis(request.fluorosis());
         encounter.setMalocclusion(request.malocclusion());
-        encounter.setDiagnosticPlan(request.diagnosticPlan());
-        encounter.setTherapeuticPlan(request.therapeuticPlan());
-        encounter.setEducationalPlan(request.educationalPlan());
+        encounter.setDiagnosticExams(normalizeExams(request.diagnosticExams()));
+        encounter.setPlanDescription(request.planDescription());
 
         encounter = encounterRepository.save(encounter);
 
@@ -281,16 +290,41 @@ public class EncounterService {
                 encounter.getTemperature(),
                 encounter.getRespiratoryRate(),
                 encounter.getStomatognathicExam(),
+                encounter.getStomatognathicRegions() != null ? List.of(encounter.getStomatognathicRegions()) : List.of(),
                 encounter.getPeriodontalDisease(),
                 encounter.getFluorosis(),
                 encounter.getMalocclusion(),
-                encounter.getDiagnosticPlan(),
-                encounter.getTherapeuticPlan(),
-                encounter.getEducationalPlan(),
+                encounter.getDiagnosticExams() != null ? List.of(encounter.getDiagnosticExams()) : List.of(),
+                encounter.getPlanDescription(),
                 encounter.getVoidedAt(),
                 encounter.getVoidReason(),
                 diagnoses
         );
+    }
+
+    private Short[] normalizeRegions(List<Short> regions) {
+        if (regions == null || regions.isEmpty()) {
+            return new Short[0];
+        }
+        return regions.stream()
+                .filter(Objects::nonNull)
+                .distinct()
+                .sorted()
+                .toArray(Short[]::new);
+    }
+
+    private String[] normalizeExams(List<String> exams) {
+        if (exams == null || exams.isEmpty()) {
+            return new String[0];
+        }
+        return exams.stream()
+                .filter(Objects::nonNull)
+                .distinct()
+                .sorted(Comparator.comparingInt(exam -> {
+                    int index = DIAGNOSTIC_EXAM_ORDER.indexOf(exam);
+                    return index >= 0 ? index : Integer.MAX_VALUE;
+                }))
+                .toArray(String[]::new);
     }
 
     private boolean isConstraintViolation(DataIntegrityViolationException exception, String constraintNameTarget) {

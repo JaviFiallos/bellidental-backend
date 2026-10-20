@@ -82,6 +82,7 @@ tests de reglas puras). La columna `*IT` y los tests listados en §4 son orienta
 | 007 | Catálogos clínicos: CIE-10, pg_trgm | V7 (`V7__icd10_catalog`) | 005 | `Icd10SearchIT` |
 | 007a | CIE-10: redacción oficial OPS y términos incluidos para la búsqueda | V14 (`V14__icd10_ops_terms`) | 007 | `Icd10SearchIT` (+1 caso) |
 | 008 | Atención clínica (encounters + diagnósticos) | V7.1 (`V7_1__encounters`) | 006, 007 | `EncounterFlowIT` |
+| 008b | Atención: casillas del 033 (regiones del examen, exámenes del plan) y descripción única de planes | V14.1 (`V14_1__encounter_033_marks`) | 008 | `EncounterFlowIT` (+1 caso) |
 | 009 | Odontograma | V8 | 008 | `OdontogramFlowIT` |
 | 010a | Tratamientos: catálogo y registro en la atención | V9 | 008, 009 | `TreatmentFlowIT` |
 | 010b | Tratamientos ligados al odontograma (hallazgo + DONE automático) | — | 010a | — |
@@ -242,7 +243,9 @@ corta (solo el título) en la receta, el historial y el 033. Las exclusiones («
 - `POST /appointments/{id}/encounter` (ODONTOLOGO): solo si la cita tiene check-in y no tiene atención;
   `professional_id` = profesional del usuario actual (quien atiende, puede diferir del agendado);
   abre la historia clínica si no existe.
-- `PUT /encounters/{id}`: secciones 1, 2, 4, 5, 7, 10 del 033. Solo mientras `status=OPEN`.
+- `PUT /encounters/{id}`: secciones 1, 2, 4, 5, 7, 10 del 033 (`stomatognathicRegions` 1–12,
+  `diagnosticExams` BIOMETRIA/QUIMICA_SANGUINEA/RAYOS_X/OTROS, `planDescription`). Quién y cuándo puede
+  editar: ver **Cierre (D-6)**.
 - `POST /encounters/{id}/diagnoses` (icd10, PRESUMPTIVE/DEFINITIVE, notas); duplicado activo → 409.
 - `POST /encounters/{id}/complete`: exige `chief_complaint` y ≥1 diagnóstico; `status=COMPLETED`,
   `end_at=now`; cita → `ATTENDED`.
@@ -251,7 +254,7 @@ corta (solo el título) en la receta, el historial y el 033. Las exclusiones («
   - Ítems (diagnósticos, hallazgos, tratamientos, recetas): anular el incorrecto con motivo
     (`voided_at`, `void_reason` donde exista) y registrar el correcto **en la misma atención**
     (se permite añadir ítems a una atención cerrada, solo para corregir, solo el odontólogo que atendió).
-  - Campos de cabecera (motivo, signos, examen, planes): no tienen anulación por campo. Se permite
+  - Campos de cabecera (motivo, signos, examen, marcas 033, planDescription): no tienen anulación por campo. Se permite
     corregirlos solo al odontólogo que atendió; Envers conserva el valor original, quién y cuándo
     cambió (no es una sobrescritura silenciosa).
   - Anular la atención entera (`void_reason`) es para atenciones registradas por error. Como

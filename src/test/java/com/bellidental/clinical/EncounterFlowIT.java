@@ -7,6 +7,7 @@ import com.bellidental.clinical.api.dto.DiagnosisResponse;
 import com.bellidental.clinical.api.dto.EncounterResponse;
 import com.bellidental.clinical.api.dto.Icd10Response;
 import com.bellidental.clinical.api.dto.OpenEncounterRequest;
+import com.bellidental.clinical.api.dto.UpdateEncounterRequest;
 import com.bellidental.clinicalrecords.ClinicalRecordResponse;
 import com.bellidental.identity.api.dto.AuthResponse;
 import com.bellidental.identity.api.dto.LoginRequest;
@@ -212,6 +213,88 @@ class EncounterFlowIT {
                 new ParameterizedTypeReference<>() {}
         );
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+    }
+
+    @Test
+    void updateEncounter_033Marks_normalizesAndValidates() {
+        UUID appointmentId = createCheckedInAppointment(LocalDate.now().plusDays(3));
+
+        OpenEncounterRequest openRequest = new OpenEncounterRequest("Consulta inicial");
+        ResponseEntity<ApiResponse<EncounterResponse>> openResponse = restTemplate.exchange(
+                "/api/v1/appointments/" + appointmentId + "/encounter",
+                HttpMethod.POST,
+                new HttpEntity<>(openRequest, odontologaHeaders),
+                new ParameterizedTypeReference<>() {}
+        );
+        assertThat(openResponse.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        UUID encounterId = openResponse.getBody().getData().id();
+
+        UpdateEncounterRequest validRequest = new UpdateEncounterRequest(
+                "Dolor en molar",
+                "Desde hace 3 días",
+                (short) 120,
+                (short) 80,
+                (short) 72,
+                new java.math.BigDecimal("36.5"),
+                (short) 18,
+                "Normal",
+                List.of((short) 5, (short) 1, (short) 5),
+                "LEVE",
+                "LEVE",
+                "ANGLE_I",
+                List.of("RAYOS_X", "BIOMETRIA"),
+                "Rx periapical de 36"
+        );
+
+        ResponseEntity<ApiResponse<EncounterResponse>> updateResponse = restTemplate.exchange(
+                "/api/v1/encounters/" + encounterId,
+                HttpMethod.PUT,
+                new HttpEntity<>(validRequest, odontologaHeaders),
+                new ParameterizedTypeReference<>() {}
+        );
+        assertThat(updateResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+        EncounterResponse data = updateResponse.getBody().getData();
+        assertThat(data.stomatognathicRegions()).containsExactly((short) 1, (short) 5);
+        assertThat(data.diagnosticExams()).containsExactly("BIOMETRIA", "RAYOS_X");
+        assertThat(data.planDescription()).isEqualTo("Rx periapical de 36");
+
+        // GET devuelve lo mismo
+        ResponseEntity<ApiResponse<EncounterResponse>> getResponse = restTemplate.exchange(
+                "/api/v1/encounters/" + encounterId,
+                HttpMethod.GET,
+                new HttpEntity<>(odontologaHeaders),
+                new ParameterizedTypeReference<>() {}
+        );
+        assertThat(getResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+        EncounterResponse getData = getResponse.getBody().getData();
+        assertThat(getData.stomatognathicRegions()).containsExactly((short) 1, (short) 5);
+        assertThat(getData.diagnosticExams()).containsExactly("BIOMETRIA", "RAYOS_X");
+        assertThat(getData.planDescription()).isEqualTo("Rx periapical de 36");
+
+        // PUT con la región 13 → 400
+        UpdateEncounterRequest invalidRequest = new UpdateEncounterRequest(
+                "Dolor en molar",
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                List.of((short) 13),
+                null,
+                null,
+                null,
+                null,
+                null
+        );
+        ResponseEntity<ApiResponse<Void>> invalidResponse = restTemplate.exchange(
+                "/api/v1/encounters/" + encounterId,
+                HttpMethod.PUT,
+                new HttpEntity<>(invalidRequest, odontologaHeaders),
+                new ParameterizedTypeReference<>() {}
+        );
+        assertThat(invalidResponse.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     }
 
     private HttpHeaders loginAs(String email) {

@@ -173,12 +173,12 @@ Table encounters {
   temperature decimal(4,1)
   respiratory_rate smallint
   stomatognathic_exam text
+  stomatognathic_regions "smallint[]" [not null, default: '{}']
   periodontal_disease varchar(10)
   malocclusion varchar(10)
   fluorosis varchar(10)
-  diagnostic_plan text
-  therapeutic_plan text
-  educational_plan text
+  diagnostic_exams "varchar(20)[]" [not null, default: '{}']
+  plan_description text
   status varchar(10) [not null, default: 'OPEN', note: 'OPEN, COMPLETED']
   voided_at timestamptz
   void_reason text
