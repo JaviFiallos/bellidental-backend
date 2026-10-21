@@ -1,0 +1,10 @@
+target/
+.git/
+.idea/
+docs/
+proy-infor/
+.claude/
+.gemini/
+.agents/
+*.md
+deploy/
