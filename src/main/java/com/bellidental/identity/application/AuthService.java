@@ -1,9 +1,12 @@
 package com.bellidental.identity.application;
 
 import com.bellidental.identity.api.dto.AuthResponse;
+import com.bellidental.identity.api.dto.ChangePasswordRequest;
 import com.bellidental.identity.api.dto.LoginRequest;
 import com.bellidental.identity.api.dto.MeResponse;
+import com.bellidental.identity.domain.PasswordRules;
 import com.bellidental.persistence.entity.User;
+import com.bellidental.shared.exception.InvalidInputException;
 import com.bellidental.persistence.repository.ProfessionalRepository;
 import com.bellidental.persistence.repository.UserRepository;
 import com.bellidental.security.CurrentUser;
@@ -12,6 +15,7 @@ import com.bellidental.security.UserAuthorities;
 import com.bellidental.shared.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.stereotype.Service;
@@ -34,6 +38,7 @@ public class AuthService {
     private final AuthenticationManager authenticationManager;
     private final CurrentUser currentUser;
     private final UserAuthorities userAuthorities;
+    private final PasswordEncoder passwordEncoder;
 
     @Transactional
     public AuthResponse login(LoginRequest request) {
@@ -60,6 +65,21 @@ public class AuthService {
         List<String> roles = userAuthorities.getRoles(user);
 
         return new AuthResponse(token, jwtService.getExpirationTime(), roles);
+    }
+
+    @Transactional
+    public void changePassword(ChangePasswordRequest request) {
+        User user = userRepository.findByIdAndDeletedAtIsNull(currentUser.userId())
+                .orElseThrow(() -> new BusinessException("Usuario no encontrado."));
+        if (!passwordEncoder.matches(request.currentPassword(), user.getPasswordHash())) {
+            throw new BadCredentialsException("La contraseña actual no es correcta.");
+        }
+        PasswordRules.validate(request.newPassword());
+        if (passwordEncoder.matches(request.newPassword(), user.getPasswordHash())) {
+            throw new InvalidInputException("La nueva contraseña debe ser distinta de la actual.");
+        }
+        user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
+        userRepository.save(user);
     }
 
     @Transactional(readOnly = true)

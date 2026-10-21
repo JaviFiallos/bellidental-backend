@@ -1,6 +1,7 @@
 package com.bellidental.clinical;
 
 import com.bellidental.appointments.api.dto.AppointmentResponse;
+import com.bellidental.audit.api.dto.AuditEntryResponse;
 import com.bellidental.appointments.api.dto.CreateAppointmentRequest;
 import com.bellidental.clinical.api.dto.AddDiagnosisRequest;
 import com.bellidental.clinical.api.dto.DiagnosisResponse;
@@ -295,6 +296,70 @@ class EncounterFlowIT {
                 new ParameterizedTypeReference<>() {}
         );
         assertThat(invalidResponse.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    void auditTrail_afterEncounterUpdate_recordsOdontologoAsUser() {
+        UUID appointmentId = createCheckedInAppointment(LocalDate.now().plusDays(34));
+
+        OpenEncounterRequest openRequest = new OpenEncounterRequest("Consulta inicial");
+        ResponseEntity<ApiResponse<EncounterResponse>> openResponse = restTemplate.exchange(
+                "/api/v1/appointments/" + appointmentId + "/encounter",
+                HttpMethod.POST,
+                new HttpEntity<>(openRequest, odontologaHeaders),
+                new ParameterizedTypeReference<>() {}
+        );
+        assertThat(openResponse.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        UUID encounterId = openResponse.getBody().getData().id();
+
+        UpdateEncounterRequest updateRequest = new UpdateEncounterRequest(
+                "Dolor en molar",
+                "Desde hace 3 días",
+                (short) 120,
+                (short) 80,
+                (short) 72,
+                new java.math.BigDecimal("36.5"),
+                (short) 18,
+                "Normal",
+                List.of((short) 5, (short) 1, (short) 5),
+                "LEVE",
+                "LEVE",
+                "ANGLE_I",
+                List.of("RAYOS_X", "BIOMETRIA"),
+                "Rx periapical de 36"
+        );
+        ResponseEntity<ApiResponse<EncounterResponse>> updateResponse = restTemplate.exchange(
+                "/api/v1/encounters/" + encounterId,
+                HttpMethod.PUT,
+                new HttpEntity<>(updateRequest, odontologaHeaders),
+                new ParameterizedTypeReference<>() {}
+        );
+        assertThat(updateResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+
+        HttpHeaders directorHeaders = loginAs("director@bellidental.local");
+        ResponseEntity<ApiResponse<List<AuditEntryResponse>>> auditResponse = restTemplate.exchange(
+                "/api/v1/audit/encounters/" + encounterId,
+                HttpMethod.GET,
+                new HttpEntity<>(directorHeaders),
+                new ParameterizedTypeReference<>() {}
+        );
+        assertThat(auditResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+        List<AuditEntryResponse> entries = auditResponse.getBody().getData();
+        assertThat(entries).hasSizeGreaterThanOrEqualTo(2);
+        assertThat(entries.get(0).type()).isEqualTo("ADD");
+        AuditEntryResponse lastEntry = entries.get(entries.size() - 1);
+        assertThat(lastEntry.type()).isEqualTo("MOD");
+        assertThat(lastEntry.userId()).isEqualTo(UUID.fromString("22222222-2222-2222-2222-222222222222"));
+        assertThat(lastEntry.changes()).anyMatch(change ->
+                "chiefComplaint".equals(change.field()) && "Dolor en molar".equals(change.newValue()));
+
+        ResponseEntity<ApiResponse<List<AuditEntryResponse>>> secretariaResponse = restTemplate.exchange(
+                "/api/v1/audit/encounters/" + encounterId,
+                HttpMethod.GET,
+                new HttpEntity<>(secretariaHeaders),
+                new ParameterizedTypeReference<>() {}
+        );
+        assertThat(secretariaResponse.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
     }
 
     private HttpHeaders loginAs(String email) {

@@ -1,20 +1,12 @@
 package com.bellidental.identity.api.dto;
 
 import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
-/**
- * Datos actualizables de un usuario existente.
- * Todos los campos son opcionales — solo se actualiza lo que se envía.
- */
+/** Único dato que el ADMIN cambia de una cuenta existente: el email. */
 public record UpdateUserRequest(
-
-        @Email(message = "El email no tiene un formato válido")
+        @NotBlank @Email(message = "El email no tiene un formato válido")
         @Size(max = 150, message = "El email no debe superar los 150 caracteres")
-        String email,
-
-        @Size(min = 8, message = "La contraseña debe tener al menos 8 caracteres")
-        String password,
-
-        Boolean active
+        String email
 ) {}

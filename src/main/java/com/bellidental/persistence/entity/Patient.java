@@ -1,5 +1,6 @@
 package com.bellidental.persistence.entity;
 
+import org.hibernate.envers.Audited;
 import com.bellidental.shared.enums.BloodType;
 import com.bellidental.shared.enums.DocumentType;
 import jakarta.persistence.*;
@@ -13,6 +14,7 @@ import java.util.UUID;
  * Paciente de la clínica Bellidental.
  * Puede estar vinculado opcionalmente a una cuenta {@link User} para acceso al portal.
  */
+@Audited
 @Entity
 @Table(name = "patients")
 @Getter

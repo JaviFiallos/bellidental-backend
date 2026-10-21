@@ -20,6 +20,9 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     boolean existsByUsernameAndDeletedAtIsNull(String username);
 
     boolean existsByEmailAndDeletedAtIsNull(String email);
+    boolean existsByEmail(String email);
+
+    boolean existsByUsername(String username);
 
     /** Retorna todos los usuarios activos (no eliminados). */
     @Query("SELECT u FROM User u WHERE u.deletedAt IS NULL ORDER BY u.createdAt DESC")

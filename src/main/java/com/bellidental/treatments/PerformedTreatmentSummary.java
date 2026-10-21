@@ -1,5 +1,6 @@
 package com.bellidental.treatments;
 
+import java.math.BigDecimal;
 import java.util.UUID;
 
 public record PerformedTreatmentSummary(
@@ -9,5 +10,6 @@ public record PerformedTreatmentSummary(
         String treatmentName,
         Short toothCode,
         String surfaceCode,
-        Integer quantity
+        Integer quantity,
+        BigDecimal price
 ) {}

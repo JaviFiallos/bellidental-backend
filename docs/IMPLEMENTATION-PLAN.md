@@ -90,8 +90,8 @@ tests de reglas puras). La columna `*IT` y los tests listados en §4 son orienta
 | 011b | Receta PDF | — | 011a | — |
 | 011c | Historial clínico `clinical-summary` (RF06, RF09) | — | 010a, 011a | `ClinicalSummaryIT` |
 | 011d | Receta PDF: diseño con la marca (logo, marca de agua, sello y firma, servicios, franja de contacto) | — | 011b | `PrescriptionPdfIT` (aserciones) |
-| 012 | Cobros + comprobante | V15 (renumerada: V13 y V14 ya existen) | 010 | — |
-| 013 | Auditoría Envers | V16 | 012 | — (añade un caso a `EncounterFlowIT`) |
+| 012 | Cobros + comprobante | V15 (renumerada: V13 y V14 ya existen) | 010a | `PaymentFlowIT` |
+| 013 | Auditoría Envers | V16 | 012 | `AuditDiffTest` + caso en `EncounterFlowIT` |
 | 014 | Google Calendar (sistema → Google) | — | 006 | — |
 | 015a | Bot (Java): API interna base — V13, clave de servicio, consentimiento, info, identificación | V13 | 006 | `BotApiIT` |
 | 015b | Agente (Python): esqueleto, webhook, firma, envío, cliente del backend | — | 015a | — (pytest) |
@@ -108,6 +108,8 @@ tests de reglas puras). La columna `*IT` y los tests listados en §4 son orienta
 | 018c | Respaldos diarios (pg_dump + rclone crypt a Drive), restore.sh y `docs/OPERATIONS.md` | — | 018a | — |
 | 018d | Exportación abierta: `GET /admin/export` (ZIP de CSV) | — | 018a | `AdminExportIT` |
 | 018e | Preparación del VPS: `deploy/vps-setup.sh` y registro de la configuración del servidor | — | 018a | — |
+| 019 | Gestión de usuarios por el ADMIN: crear, roles, reset, desactivar, cambio de contraseña (D-24, reemplaza D-13) | — | 003 | `UserManagementIT` + `PasswordRulesTest` |
+| 020 | Estadísticas del negocio: `GET /dashboard/summary` (D-25, D-26) | — | 012 | `DashboardSummaryIT` + `NoShowRateTest` |
 
 (007 y 008 van separadas: CIE-10 en `V7__icd10_catalog.sql` y atención en `V7_1__encounters.sql`, para no renumerar 009+.)
 (El historial inmediato `GET /patients/{id}/clinical-summary` de §4.4 sale de la 008: es la tarea 011c.)
@@ -355,7 +357,7 @@ PDF: un test que genera bytes no vacíos y contiene "CONFIDENCIAL".
 
 ### 4.8 Cobros — tarea 012 (RF08)
 Paquete `com.bellidental.billing`. Migración V15: `payments`, secuencia de comprobante
-(`receipt_number` = `C-000001`), CHECK `amount > 0`, REVOKE DELETE (notas SQL).
+(`receipt_number` = `C-000001`), CHECK `amount > 0`, trigger BEFORE DELETE (D-8c).
 
 Reglas:
 - SECRETARIA (BILLING_CREATE) registra abono: monto, método, opcionalmente la atención de la sesión.
@@ -549,21 +551,23 @@ Proveedor: Contabo Cloud VPS 6 GB, Ubuntu 24.04; imágenes en GHCR; CI/CD con Gi
   secretos (JWT, `X-Bot-Key`, token de WhatsApp).
 Unit: escritor CSV (escapes, UTF-8, cabeceras).
 
-### 4.13 Cuentas de acceso para profesionales — **posterior al MVP** (D-13)
-Hoy no existe alta de usuarios por API (`/auth/register` se cerró en la tarea 003; `UserController` solo lista,
-edita y hace borrado lógico, para ADMIN). Mientras no se implemente, **una cuenta nueva se crea con una
-migración Flyway** como las de la semilla (V-siguiente, UUID fijo, rol ODONTOLOGO, contraseña temporal en BCrypt).
+### 4.13 Gestión de usuarios — tarea 019 (D-24)
+El ADMIN gestiona cuentas (reemplaza D-13: el requerimiento del usuario lo pidió dentro del MVP).
 
-Endpoints estipulados para cuando se implemente:
 | Método y ruta | Permiso | Cuerpo | Efecto |
 |---|---|---|---|
-| `POST /api/v1/professionals/{id}/access` | ADMIN (`PROFESSIONAL_MANAGE`) | `{email, temporaryPassword}` | Crea `users` (username = parte local del email), rol ODONTOLOGO, enlaza `professionals.user_id`. 409 si el email existe o el profesional ya tiene cuenta |
-| `POST /api/v1/users/{id}/reset-password` | ADMIN | `{temporaryPassword}` | Reemplaza el hash; no revela la contraseña anterior |
+| `GET /api/v1/users`, `GET /api/v1/users/{id}` | ADMIN | — | Listado y detalle de usuarios activos |
+| `POST /api/v1/users` | ADMIN | `{email, username?, temporaryPassword, roles}` | Crea ODONTOLOGO o SECRETARIA (201). Si falta `username`, usa la parte local del email. No se crea ADMIN |
+| `PUT /api/v1/users/{id}` | ADMIN | `{email}` | Cambia el email; 409 si ya lo usa otra cuenta |
+| `PUT /api/v1/users/{id}/roles` | ADMIN | `{roles}` | Reemplaza roles entre ODONTOLOGO y SECRETARIA; no toca ADMIN ni cuentas del sistema |
+| `POST /api/v1/users/{id}/reset-password` | ADMIN | `{temporaryPassword}` | Reemplaza el hash; sin cambio forzado en el primer login |
+| `POST /api/v1/users/{id}/deactivate` · `activate` | ADMIN | — | `active` = false / true; no se puede desactivar la propia cuenta |
+| `POST /api/v1/professionals/{id}/access` | ADMIN | `{email, temporaryPassword}` | Crea la cuenta ODONTOLOGO y enlaza `professionals.user_id` (201). 409 si el profesional ya tiene cuenta |
 | `PUT /api/v1/auth/password` | autenticado | `{currentPassword, newPassword}` | Cambia la propia contraseña (mín. 10 caracteres); 401 si la actual no coincide |
-| `POST /api/v1/users/{id}/deactivate` | ADMIN | — | `active=false`; reemplaza al `DELETE /users/{id}` actual |
 
-Reglas: no se crean ADMIN ni SECRETARIA por API (siguen fijos por semilla); nunca se registran contraseñas en logs;
-forzar el cambio de la contraseña temporal requeriría una columna `must_change_password` (cambio de esquema, decidir entonces).
+Reglas: `DELETE /api/v1/users/{id}` se elimina (sustituido por desactivar); las contraseñas no se registran en
+logs ni en `toString`; los cambios de activo o roles surten efecto en la siguiente petición (el filtro JWT relee
+el usuario).
 
 ---
 
@@ -599,7 +603,7 @@ quitar RECORD_* de ADMIN en la semilla (hoy ADMIN = todos).
 | D-10 | Cancelar o reprogramar por bot hasta 2 h antes | §4.11 |
 | D-11 | `postgres:16` también en `docker-compose` de despliegue | §4.12 |
 | D-12 | La secretaria registra los horarios: permiso `SCHEDULE_MANAGE` para ADMIN y SECRETARIA | tarea 002, §4.3 |
-| D-13 | Alta de cuentas para profesionales: posterior al MVP; endpoints estipulados; mientras tanto, por migración | §4.13 |
+| D-13 | ~~Alta de cuentas para profesionales: posterior al MVP~~ Reemplazada por D-24 | §4.13 |
 | D-14 | Odontograma completo: simbología en `dental_condition_symbols`, alcance SPAN para prótesis, categoría periodontal y rango de grado | `schema.dbml`, §4.5 |
 | D-15 | appointments lee el vínculo cita→atención con EncounterRepository (solo lectura) para evitar el ciclo con clinical | §4.3 |
 | D-16 | Reemplazar los ítems de una receta DRAFT borra sus filas de `prescription_items`; es la única excepción a «sin DELETE en datos clínicos», porque un borrador nunca se entregó al paciente. Los ítems de una receta ISSUED nunca se borran | §4.7 |
@@ -619,3 +623,8 @@ quitar RECORD_* de ADMIN en la semilla (hoy ADMIN = todos).
 | D-14c | Odontóloga: ¿caries tratada = obturación (FILLING) y extracción indicada realizada = perdido por caries (MISSING_CARIES)? | sí (CARIES→FILLING, EXTRACTION→MISSING_CARIES) | 010b |
 | D-20b | Proveedor y modelo de IA para el NLU (se evaluarán opciones baratas, incluidos modelos chinos alojados fuera de China) | Decidir en 016e | 016e |
 | D-21b | ¿Avisar a recepción cuando el bot agenda una urgencia? Hoy no hay bandeja: la cita aparece en la agenda con `source=BOT` | No avisar en el MVP | 016a |
+| D-8b | No se crea `BillingDirectory`: nadie fuera de cobros la necesita; la 020 lee agregados con consultas nativas (D-25) | No crearla (provisional) | 012, 020 |
+| D-8c | El REVOKE DELETE de payments no se aplica por rol (la app y Flyway usan el mismo usuario); en su lugar, trigger `BEFORE DELETE` que lanza excepción, así se cumple también en pruebas | Trigger BEFORE DELETE (provisional) | 012 |
+| D-25 | Estadísticas con consultas nativas agregadas en un repositorio de solo lectura (`DashboardRepository`), no por Directories; la regla de saldo vive también en SQL y el IT comprueba que coincide con `GET /patients/{id}/account` | Repositorio nativo (provisional) | 020 |
+| D-26 | El dashboard de estadísticas es solo para ADMIN (ingresos sensibles); `DASHBOARD_VIEW` del odontólogo queda sin uso | Solo ADMIN (provisional) | 020 |
+| D-24 | Gestión de cuentas por el ADMIN: alta de ODONTOLOGO y SECRETARIA, roles, contraseña temporal, activar/desactivar; ADMIN no se crea por API; sin cambio forzado de contraseña en el primer login (requiere columna nueva) | Solo ADMIN; contraseña temporal sin forzar cambio (provisional, a confirmar) | 019 |
