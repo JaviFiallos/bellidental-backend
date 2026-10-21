@@ -6,7 +6,7 @@
 `LocalDate` en la zona de la clínica; por defecto el mes actual: del día 1 a hoy según `clinicClock.today()`).
 Pragmático: consultas agregadas. No hay migración. **Depende de la 012** (tabla `payments`).
 
-Decisiones (se anotan en el plan §6, «Pendientes», como provisionales):
+Decisiones (anotadas en el plan §6, «Confirmadas»):
 - **D-25**: el dashboard **no** consulta módulo por módulo vía `Directory` (traería listas enteras a memoria y
   obligaría a ampliar cinco interfaces). Usa un **repositorio de solo lectura con consultas nativas agregadas**
   (`persistence/repository/DashboardRepository`), en la línea de D-15. Costo: la regla de saldo vive también en
@@ -114,9 +114,9 @@ usa el rango de **hoy** (`today = LocalDate.now(ZoneId.of("America/Guayaquil"))`
   (coherencia con D-25). Comparar montos con `isEqualByComparingTo`.
 - `summary_asSecretaria_returnsForbidden`: 403.
 
-## Decisiones provisionales (confirmar con el usuario)
-- **D-25**: agregados con consultas nativas en un repositorio de solo lectura en vez de Directories.
-- **D-26**: dashboard solo para ADMIN (ingresos sensibles); el odontólogo no lo ve y `DASHBOARD_VIEW` queda sin uso.
+## Decisiones (confirmadas por el usuario el 2026-10-21)
+- **D-25**: agregados con consultas nativas en un repositorio de solo lectura en vez de Directories; se exponen por el único endpoint `GET /dashboard/summary`.
+- **D-26**: este dashboard (con dinero) es solo para ADMIN; `DASHBOARD_VIEW` del odontólogo queda sin uso aquí. El odontólogo tendrá una vista propia sin dinero (D-26b, sin tarea por ahora).
 - «Tasa de inasistencia» = NO_SHOW / citas pasadas no canceladas ni reprogramadas.
 - Ingresos = pagos no anulados por `paid_at`; atenciones «completadas» por `closed_at`; tratamientos más
   frecuentes por fecha de la atención.
