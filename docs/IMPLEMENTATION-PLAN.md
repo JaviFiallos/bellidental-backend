@@ -90,8 +90,8 @@ tests de reglas puras). La columna `*IT` y los tests listados en §4 son orienta
 | 011b | Receta PDF | — | 011a | — |
 | 011c | Historial clínico `clinical-summary` (RF06, RF09) | — | 010a, 011a | `ClinicalSummaryIT` |
 | 011d | Receta PDF: diseño con la marca (logo, marca de agua, sello y firma, servicios, franja de contacto) | — | 011b | `PrescriptionPdfIT` (aserciones) |
-| 012 | Cobros + comprobante | V15 (renumerada: V13 y V14 ya existen) | 010 | — |
-| 013 | Auditoría Envers | V16 | 012 | — (añade un caso a `EncounterFlowIT`) |
+| 012 | Cobros + comprobante | V15 (renumerada: V13 y V14 ya existen) | 010a | `PaymentFlowIT` |
+| 013 | Auditoría Envers | V16 | 012 | `AuditDiffTest` + caso en `EncounterFlowIT` |
 | 014 | Google Calendar (sistema → Google) | — | 006 | — |
 | 015a | Bot (Java): API interna base — V13, clave de servicio, consentimiento, info, identificación | V13 | 006 | `BotApiIT` |
 | 015b | Agente (Python): esqueleto, webhook, firma, envío, cliente del backend | — | 015a | — (pytest) |
@@ -108,6 +108,8 @@ tests de reglas puras). La columna `*IT` y los tests listados en §4 son orienta
 | 018c | Respaldos diarios (pg_dump + rclone crypt a Drive), restore.sh y `docs/OPERATIONS.md` | — | 018a | — |
 | 018d | Exportación abierta: `GET /admin/export` (ZIP de CSV) | — | 018a | `AdminExportIT` |
 | 018e | Preparación del VPS: `deploy/vps-setup.sh` y registro de la configuración del servidor | — | 018a | — |
+| 019 | Gestión de usuarios por el ADMIN: crear, roles, reset, desactivar, cambio de contraseña (D-24, reemplaza D-13) | — | 003 | `UserManagementIT` + `PasswordRulesTest` |
+| 020 | Estadísticas del negocio: `GET /dashboard/summary` (D-25, D-26) | — | 012 | `DashboardSummaryIT` + `NoShowRateTest` |
 
 (007 y 008 van separadas: CIE-10 en `V7__icd10_catalog.sql` y atención en `V7_1__encounters.sql`, para no renumerar 009+.)
 (El historial inmediato `GET /patients/{id}/clinical-summary` de §4.4 sale de la 008: es la tarea 011c.)
@@ -355,7 +357,7 @@ PDF: un test que genera bytes no vacíos y contiene "CONFIDENCIAL".
 
 ### 4.8 Cobros — tarea 012 (RF08)
 Paquete `com.bellidental.billing`. Migración V15: `payments`, secuencia de comprobante
-(`receipt_number` = `C-000001`), CHECK `amount > 0`, REVOKE DELETE (notas SQL).
+(`receipt_number` = `C-000001`), CHECK `amount > 0`, trigger BEFORE DELETE (D-8c).
 
 Reglas:
 - SECRETARIA (BILLING_CREATE) registra abono: monto, método, opcionalmente la atención de la sesión.
@@ -619,3 +621,5 @@ quitar RECORD_* de ADMIN en la semilla (hoy ADMIN = todos).
 | D-14c | Odontóloga: ¿caries tratada = obturación (FILLING) y extracción indicada realizada = perdido por caries (MISSING_CARIES)? | sí (CARIES→FILLING, EXTRACTION→MISSING_CARIES) | 010b |
 | D-20b | Proveedor y modelo de IA para el NLU (se evaluarán opciones baratas, incluidos modelos chinos alojados fuera de China) | Decidir en 016e | 016e |
 | D-21b | ¿Avisar a recepción cuando el bot agenda una urgencia? Hoy no hay bandeja: la cita aparece en la agenda con `source=BOT` | No avisar en el MVP | 016a |
+| D-8b | No se crea `BillingDirectory`: nadie fuera de cobros la necesita; la 020 lee agregados con consultas nativas (D-25) | No crearla (provisional) | 012, 020 |
+| D-8c | El REVOKE DELETE de payments no se aplica por rol (la app y Flyway usan el mismo usuario); en su lugar, trigger `BEFORE DELETE` que lanza excepción, así se cumple también en pruebas | Trigger BEFORE DELETE (provisional) | 012 |
