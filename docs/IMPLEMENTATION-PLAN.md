@@ -623,3 +623,5 @@ quitar RECORD_* de ADMIN en la semilla (hoy ADMIN = todos).
 | D-21b | ¿Avisar a recepción cuando el bot agenda una urgencia? Hoy no hay bandeja: la cita aparece en la agenda con `source=BOT` | No avisar en el MVP | 016a |
 | D-8b | No se crea `BillingDirectory`: nadie fuera de cobros la necesita; la 020 lee agregados con consultas nativas (D-25) | No crearla (provisional) | 012, 020 |
 | D-8c | El REVOKE DELETE de payments no se aplica por rol (la app y Flyway usan el mismo usuario); en su lugar, trigger `BEFORE DELETE` que lanza excepción, así se cumple también en pruebas | Trigger BEFORE DELETE (provisional) | 012 |
+| D-25 | Estadísticas con consultas nativas agregadas en un repositorio de solo lectura (`DashboardRepository`), no por Directories; la regla de saldo vive también en SQL y el IT comprueba que coincide con `GET /patients/{id}/account` | Repositorio nativo (provisional) | 020 |
+| D-26 | El dashboard de estadísticas es solo para ADMIN (ingresos sensibles); `DASHBOARD_VIEW` del odontólogo queda sin uso | Solo ADMIN (provisional) | 020 |
