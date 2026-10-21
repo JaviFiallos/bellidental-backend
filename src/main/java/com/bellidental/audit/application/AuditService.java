@@ -15,8 +15,11 @@ import com.bellidental.persistence.entity.Payment;
 import com.bellidental.persistence.entity.PerformedTreatment;
 import com.bellidental.persistence.entity.Prescription;
 import com.bellidental.persistence.entity.PrescriptionItem;
+import com.bellidental.persistence.entity.Specialty;
+import com.bellidental.persistence.entity.Treatment;
 import com.bellidental.persistence.entity.User;
 import com.bellidental.persistence.repository.UserRepository;
+import com.bellidental.shared.exception.InvalidInputException;
 import com.bellidental.shared.exception.ResourceNotFoundException;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.ManyToOne;
@@ -55,14 +58,16 @@ public class AuditService {
             Map.entry("prescription-items", PrescriptionItem.class),
             Map.entry("payments", Payment.class),
             Map.entry("appointments", Appointment.class),
-            Map.entry("patients", Patient.class)
+            Map.entry("patients", Patient.class),
+            Map.entry("treatments", Treatment.class),
+            Map.entry("specialties", Specialty.class)
     );
 
     private final EntityManager entityManager;
     private final UserRepository userRepository;
 
     @Transactional(readOnly = true)
-    public List<AuditEntryResponse> findHistory(String entityName, UUID id) {
+    public List<AuditEntryResponse> findHistory(String entityName, String id) {
         Class<?> entityClass = AUDITED_ENTITIES.get(entityName);
         if (entityClass == null) {
             throw new ResourceNotFoundException("Entidad no auditada: " + entityName);
@@ -71,7 +76,7 @@ public class AuditService {
         AuditReader reader = AuditReaderFactory.get(entityManager);
         List<?> rows = reader.createQuery()
                 .forRevisionsOfEntity(entityClass, false, true)
-                .add(AuditEntity.id().eq(id))
+                .add(AuditEntity.id().eq(parseId(entityClass, id)))
                 .addOrder(AuditEntity.revisionNumber().asc())
                 .getResultList();
 
@@ -98,6 +103,16 @@ public class AuditService {
             previousValues = currentValues;
         }
         return entries;
+    }
+
+    /** Convierte el id de la URL al tipo de la clave primaria de la entidad (bigint o uuid). */
+    private Object parseId(Class<?> entityClass, String id) {
+        Class<?> idType = entityManager.getMetamodel().entity(entityClass).getIdType().getJavaType();
+        try {
+            return Long.class.equals(idType) ? Long.valueOf(id) : UUID.fromString(id);
+        } catch (IllegalArgumentException e) {
+            throw new InvalidInputException("Identificador no válido: " + id);
+        }
     }
 
     private Map<String, String> snapshot(Object entity) {

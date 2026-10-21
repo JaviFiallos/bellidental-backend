@@ -2,7 +2,9 @@ package com.bellidental.persistence.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.envers.Audited;
 
+@Audited
 @Entity
 @Table(name = "specialties")
 @Getter
