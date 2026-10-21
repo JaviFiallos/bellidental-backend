@@ -191,3 +191,12 @@ Estado: APROBADO
   Reducir con jlink queda como recomendación, no como tarea.
 - Swagger/`/api-docs` con 500 en prod: no se expone (Caddy solo enruta `/api/*` al backend). Sin cambios.
 - `--mount=type=cache` y el job `deploy` se validan en el primer push a `main` (CI usa buildx).
+
+Validación en producción (2026-10-21, merge de `develop` a `main`, commit `4537993`):
+- `test` → `image` → `deploy` en verde. `https://app.bellidentalv1.site` 200 con certificado válido; `/api/v1/auth/login`
+  responde (400 sin cuerpo); `/api/v1/bot/info` y `/actuator/health` 404 desde internet. db y backend `healthy`.
+- Fallos del primer intento, todos de configuración en GitHub (sin cambio de código): secretos en un environment
+  `bb_production` (el workflow usa `production`) y `APP_DOMAIN` sin crear (`curl https:///`).
+- Cambio en `ci-cd.yml` (018e): `up -d` solo `db backend frontend caddy`, porque la imagen del agente aún no existe.
+- Frontend `unhealthy` aunque sirve 200: su `HEALTHCHECK` usa `localhost`, que en Alpine resuelve a `::1` y nginx solo
+  escucha IPv4. Se corrige en el repo del frontend (022b: `127.0.0.1`).
