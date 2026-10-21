@@ -125,7 +125,7 @@ class EncounterFlowIT {
 
     @Test
     void encounterFlow_openCompleteDiagnosis_succeeds() {
-        UUID appointmentId = createCheckedInAppointment(LocalDate.now().plusDays(1));
+        UUID appointmentId = createCheckedInAppointment(LocalDate.now().plusDays(31));
 
         // 1. Odontóloga abre atención → 201
         OpenEncounterRequest openRequest = new OpenEncounterRequest("Dolor en molar superior");
@@ -202,7 +202,7 @@ class EncounterFlowIT {
 
     @Test
     void openEncounter_asSecretaria_returnsForbidden() {
-        UUID appointmentId = createCheckedInAppointment(LocalDate.now().plusDays(2));
+        UUID appointmentId = createCheckedInAppointment(LocalDate.now().plusDays(32));
 
         // La secretaria intenta abrir la atención → 403
         OpenEncounterRequest openRequest = new OpenEncounterRequest("Intento no autorizado");
@@ -217,7 +217,7 @@ class EncounterFlowIT {
 
     @Test
     void updateEncounter_033Marks_normalizesAndValidates() {
-        UUID appointmentId = createCheckedInAppointment(LocalDate.now().plusDays(3));
+        UUID appointmentId = createCheckedInAppointment(LocalDate.now().plusDays(33));
 
         OpenEncounterRequest openRequest = new OpenEncounterRequest("Consulta inicial");
         ResponseEntity<ApiResponse<EncounterResponse>> openResponse = restTemplate.exchange(
