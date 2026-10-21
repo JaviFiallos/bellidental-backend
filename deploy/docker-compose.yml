@@ -1,0 +1,98 @@
+name: bellidental
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  db:
+    image: postgres:16.15-trixie
+    restart: unless-stopped
+    mem_limit: 1g
+    logging: *default-logging
+    command: postgres -c shared_buffers=256MB -c max_connections=50
+    environment:
+      POSTGRES_DB: bellidental
+      POSTGRES_USER: bellidental
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bellidental -d bellidental"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    image: ghcr.io/javifiallos/bellidental-backend:${BACKEND_TAG:-latest}
+    restart: unless-stopped
+    mem_limit: 1g
+    logging: *default-logging
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_URL: jdbc:postgresql://db:5432/bellidental
+      DB_USERNAME: bellidental
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      BOT_API_KEY: ${BOT_API_KEY}
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost:8080/actuator/health/readiness || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 90s
+
+  frontend:
+    image: ghcr.io/javifiallos/bellidental-frontend:${FRONTEND_TAG:-latest}
+    restart: unless-stopped
+    mem_limit: 64m
+    logging: *default-logging
+
+  agent:
+    image: ghcr.io/javifiallos/bellidental-agent:${AGENT_TAG:-latest}
+    restart: unless-stopped
+    mem_limit: 256m
+    logging: *default-logging
+    environment:
+      BACKEND_URL: http://backend:8080
+      BOT_API_KEY: ${BOT_API_KEY}
+      WA_VERIFY_TOKEN: ${WA_VERIFY_TOKEN}
+      WA_APP_SECRET: ${WA_APP_SECRET}
+      WA_ACCESS_TOKEN: ${WA_ACCESS_TOKEN}
+      WA_PHONE_NUMBER_ID: ${WA_PHONE_NUMBER_ID}
+      WA_GRAPH_VERSION: ${WA_GRAPH_VERSION}
+      LLM_BASE_URL: ${LLM_BASE_URL}
+      LLM_API_KEY: ${LLM_API_KEY}
+      LLM_MODEL: ${LLM_MODEL}
+      CLINIC_ZONE: America/Guayaquil
+      REMINDERS_ENABLED: "true"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  caddy:
+    image: caddy:2.11.7-alpine
+    restart: unless-stopped
+    mem_limit: 128m
+    logging: *default-logging
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      DOMAIN: ${DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  postgres_data:
+  caddy_data:
+  caddy_config:

@@ -103,7 +103,10 @@ tests de reglas puras). La columna `*IT` y los tests listados en §4 son orienta
 | 016e | Agente: NLU con LLM — intenciones, urgencia, precios, fuera de tema | — | 016d | — (pytest) |
 | 017a | Bot (Java): recordatorios — creación por eventos, due/sent/response | — | 016b | `BotReminderIT` |
 | 017b | Agente: envío de recordatorios y respuesta a sus botones | — | 016d, 017a | — (pytest) |
-| 018 | Despliegue en VPS, respaldos y exportación | — | todo | — |
+| 018a | Despliegue: imagen del backend, perfil prod, compose de producción, Caddy y CI/CD (Contabo, GHCR) | — | todo | — |
+| 018b | Agente: imagen Docker y CI/CD (repo del agente) | — | 018a | — |
+| 018c | Respaldos diarios (pg_dump + rclone crypt a Drive), restore.sh y `docs/OPERATIONS.md` | — | 018a | — |
+| 018d | Exportación abierta: `GET /admin/export` (ZIP de CSV) | — | 018a | `AdminExportIT` |
 
 (007 y 008 van separadas: CIE-10 en `V7__icd10_catalog.sql` y atención en `V7_1__encounters.sql`, para no renumerar 009+.)
 (El historial inmediato `GET /patients/{id}/clinical-summary` de §4.4 sale de la 008: es la tarea 011c.)
@@ -534,7 +537,8 @@ identificado, selección parcial, últimos mensajes y `handoffUntil`. Una sola i
 backend y el LLM simulados; máx. 4 por tarea; nunca llamadas reales al LLM ni a Meta. El conjunto de evaluación
 del NLU queda como recomendación (D-23).
 
-### 4.12 Despliegue en VPS, respaldos y exportación — tarea 018 (RNF04)
+### 4.12 Despliegue en VPS, respaldos y exportación — tareas 018a–018d (RNF04)
+Proveedor: Contabo Cloud VPS 6 GB, Ubuntu 24.04; imágenes en GHCR; CI/CD con GitHub Actions por repo (frontend: tarea 022). Pasos manuales: `docs/DEPLOY-SETUP.md`.
 - `docker-compose` de producción con `caddy`, `frontend`, `backend`, `agent`, `postgres:16` (D-11) y `backup`;
   `Caddyfile` con los dominios de §1 y el bloqueo de `/api/v1/bot/**`.
 - Servicio `backup` (imagen postgres:16 + cron): `pg_dump -Fc` diario, retención 30 días en el VPS y copia cifrada

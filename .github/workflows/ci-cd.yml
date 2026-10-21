@@ -1,0 +1,126 @@
+name: CI/CD
+
+on:
+  pull_request:
+  push:
+    branches: [main, develop]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - run: ./mvnw -B verify
+
+  image:
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/javifiallos/bellidental-backend
+          tags: |
+            type=raw,value=latest
+            type=sha,prefix=sha-
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    needs: image
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment: production
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Preparar claves SSH
+        env:
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "$VPS_KNOWN_HOSTS" > ~/.ssh/known_hosts
+
+      - name: Copiar archivos de despliegue
+        env:
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+        run: scp deploy/docker-compose.yml deploy/Caddyfile "$VPS_USER@$VPS_HOST:/opt/bellidental/"
+
+      - name: Desplegar en el VPS
+        env:
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+        run: |
+          ssh "$VPS_USER@$VPS_HOST" "bash -s -- ${GITHUB_SHA::7}" <<'REMOTE'
+          set -euo pipefail
+          cd /opt/bellidental
+          sha="$1"
+
+          mkdir -p backups
+          if [ -n "$(docker compose ps --status running -q db)" ]; then
+            docker compose exec -T db pg_dump -U bellidental -Fc bellidental > "backups/predeploy-${sha}.dump"
+            ls -1t backups/predeploy-*.dump | tail -n +6 | xargs -r rm --
+          fi
+
+          docker compose pull backend
+          docker compose up -d --remove-orphans
+          docker compose exec -T caddy caddy reload --config /etc/caddy/Caddyfile
+
+          backend_id="$(docker compose ps -q backend)"
+          healthy=false
+          for _ in $(seq 1 36); do
+            if [ "$(docker inspect --format '{{.State.Health.Status}}' "$backend_id")" = "healthy" ]; then
+              healthy=true
+              break
+            fi
+            sleep 5
+          done
+          if [ "$healthy" != "true" ]; then
+            docker compose logs --tail=80 backend
+            exit 1
+          fi
+
+          docker image prune -f
+          REMOTE
+
+      - name: Comprobar la aplicación
+        run: curl -fsS https://${{ vars.APP_DOMAIN }}/ -o /dev/null
