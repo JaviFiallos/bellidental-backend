@@ -107,6 +107,7 @@ tests de reglas puras). La columna `*IT` y los tests listados en §4 son orienta
 | 018b | Agente: imagen Docker y CI/CD (repo del agente) | — | 018a | — |
 | 018c | Respaldos diarios (pg_dump + rclone crypt a Drive), restore.sh y `docs/OPERATIONS.md` | — | 018a | — |
 | 018d | Exportación abierta: `GET /admin/export` (ZIP de CSV) | — | 018a | `AdminExportIT` |
+| 018e | Preparación del VPS: `deploy/vps-setup.sh` y registro de la configuración del servidor | — | 018a | — |
 
 (007 y 008 van separadas: CIE-10 en `V7__icd10_catalog.sql` y atención en `V7_1__encounters.sql`, para no renumerar 009+.)
 (El historial inmediato `GET /patients/{id}/clinical-summary` de §4.4 sale de la 008: es la tarea 011c.)

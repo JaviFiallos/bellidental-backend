@@ -102,7 +102,8 @@ jobs:
           fi
 
           docker compose pull backend
-          docker compose up -d --remove-orphans
+          # el agente lo levanta su propio pipeline (018b)
+          docker compose up -d --remove-orphans db backend frontend caddy
           docker compose exec -T caddy caddy reload --config /etc/caddy/Caddyfile
 
           backend_id="$(docker compose ps -q backend)"
