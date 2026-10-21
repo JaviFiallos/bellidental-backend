@@ -1,5 +1,6 @@
 package com.bellidental.persistence.entity;
 
+import org.hibernate.envers.Audited;
 import com.bellidental.shared.enums.DiagnosisCertainty;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -19,6 +20,7 @@ import org.hibernate.annotations.CreationTimestamp;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
+@Audited
 @Entity
 @Table(name = "encounter_diagnoses")
 @Getter

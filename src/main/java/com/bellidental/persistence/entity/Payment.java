@@ -1,5 +1,6 @@
 package com.bellidental.persistence.entity;
 
+import org.hibernate.envers.Audited;
 import com.bellidental.shared.enums.PaymentMethod;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -17,6 +18,7 @@ import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
+@Audited
 @Entity
 @Table(name = "payments")
 @Getter

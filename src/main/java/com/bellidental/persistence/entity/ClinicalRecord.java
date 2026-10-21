@@ -1,5 +1,7 @@
 package com.bellidental.persistence.entity;
 
+import org.hibernate.envers.Audited;
+import org.hibernate.envers.RelationTargetAuditMode;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -22,6 +24,7 @@ import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
+@Audited
 @Entity
 @Table(name = "clinical_records")
 @Getter
@@ -46,6 +49,7 @@ public class ClinicalRecord {
     @Column(name = "opened_at", nullable = false)
     private LocalDate openedAt;
 
+    @Audited(targetAuditMode = RelationTargetAuditMode.NOT_AUDITED)
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "opened_by", nullable = false)
     private Professional openedBy;

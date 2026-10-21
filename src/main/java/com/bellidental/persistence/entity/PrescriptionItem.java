@@ -1,5 +1,6 @@
 package com.bellidental.persistence.entity;
 
+import org.hibernate.envers.Audited;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -12,6 +13,7 @@ import lombok.Setter;
 
 import java.util.UUID;
 
+@Audited
 @Entity
 @Table(name = "prescription_items")
 @Getter
