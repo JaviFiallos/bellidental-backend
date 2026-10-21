@@ -1,6 +1,8 @@
 package com.bellidental.identity.api;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import com.bellidental.identity.api.dto.AuthResponse;
+import com.bellidental.identity.api.dto.ChangePasswordRequest;
 import com.bellidental.identity.api.dto.LoginRequest;
 import com.bellidental.identity.api.dto.MeResponse;
 import com.bellidental.identity.application.AuthService;
@@ -30,6 +32,14 @@ public class AuthController {
     ) {
         AuthResponse response = authService.login(request);
         return ResponseEntity.ok(ApiResponse.ok("Inicio de sesión exitoso.", response));
+    }
+
+    @PutMapping("/password")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Cambiar la propia contraseña", description = "Requiere la contraseña actual; 401 si no coincide.")
+    public ResponseEntity<ApiResponse<Void>> changePassword(@Valid @RequestBody ChangePasswordRequest request) {
+        authService.changePassword(request);
+        return ResponseEntity.ok(ApiResponse.ok("Contraseña actualizada."));
     }
 
     @GetMapping("/me")

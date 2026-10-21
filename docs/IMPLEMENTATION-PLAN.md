@@ -551,21 +551,23 @@ Proveedor: Contabo Cloud VPS 6 GB, Ubuntu 24.04; imágenes en GHCR; CI/CD con Gi
   secretos (JWT, `X-Bot-Key`, token de WhatsApp).
 Unit: escritor CSV (escapes, UTF-8, cabeceras).
 
-### 4.13 Cuentas de acceso para profesionales — **posterior al MVP** (D-13)
-Hoy no existe alta de usuarios por API (`/auth/register` se cerró en la tarea 003; `UserController` solo lista,
-edita y hace borrado lógico, para ADMIN). Mientras no se implemente, **una cuenta nueva se crea con una
-migración Flyway** como las de la semilla (V-siguiente, UUID fijo, rol ODONTOLOGO, contraseña temporal en BCrypt).
+### 4.13 Gestión de usuarios — tarea 019 (D-24)
+El ADMIN gestiona cuentas (reemplaza D-13: el requerimiento del usuario lo pidió dentro del MVP).
 
-Endpoints estipulados para cuando se implemente:
 | Método y ruta | Permiso | Cuerpo | Efecto |
 |---|---|---|---|
-| `POST /api/v1/professionals/{id}/access` | ADMIN (`PROFESSIONAL_MANAGE`) | `{email, temporaryPassword}` | Crea `users` (username = parte local del email), rol ODONTOLOGO, enlaza `professionals.user_id`. 409 si el email existe o el profesional ya tiene cuenta |
-| `POST /api/v1/users/{id}/reset-password` | ADMIN | `{temporaryPassword}` | Reemplaza el hash; no revela la contraseña anterior |
+| `GET /api/v1/users`, `GET /api/v1/users/{id}` | ADMIN | — | Listado y detalle de usuarios activos |
+| `POST /api/v1/users` | ADMIN | `{email, username?, temporaryPassword, roles}` | Crea ODONTOLOGO o SECRETARIA (201). Si falta `username`, usa la parte local del email. No se crea ADMIN |
+| `PUT /api/v1/users/{id}` | ADMIN | `{email}` | Cambia el email; 409 si ya lo usa otra cuenta |
+| `PUT /api/v1/users/{id}/roles` | ADMIN | `{roles}` | Reemplaza roles entre ODONTOLOGO y SECRETARIA; no toca ADMIN ni cuentas del sistema |
+| `POST /api/v1/users/{id}/reset-password` | ADMIN | `{temporaryPassword}` | Reemplaza el hash; sin cambio forzado en el primer login |
+| `POST /api/v1/users/{id}/deactivate` · `activate` | ADMIN | — | `active` = false / true; no se puede desactivar la propia cuenta |
+| `POST /api/v1/professionals/{id}/access` | ADMIN | `{email, temporaryPassword}` | Crea la cuenta ODONTOLOGO y enlaza `professionals.user_id` (201). 409 si el profesional ya tiene cuenta |
 | `PUT /api/v1/auth/password` | autenticado | `{currentPassword, newPassword}` | Cambia la propia contraseña (mín. 10 caracteres); 401 si la actual no coincide |
-| `POST /api/v1/users/{id}/deactivate` | ADMIN | — | `active=false`; reemplaza al `DELETE /users/{id}` actual |
 
-Reglas: no se crean ADMIN ni SECRETARIA por API (siguen fijos por semilla); nunca se registran contraseñas en logs;
-forzar el cambio de la contraseña temporal requeriría una columna `must_change_password` (cambio de esquema, decidir entonces).
+Reglas: `DELETE /api/v1/users/{id}` se elimina (sustituido por desactivar); las contraseñas no se registran en
+logs ni en `toString`; los cambios de activo o roles surten efecto en la siguiente petición (el filtro JWT relee
+el usuario).
 
 ---
 
@@ -601,7 +603,7 @@ quitar RECORD_* de ADMIN en la semilla (hoy ADMIN = todos).
 | D-10 | Cancelar o reprogramar por bot hasta 2 h antes | §4.11 |
 | D-11 | `postgres:16` también en `docker-compose` de despliegue | §4.12 |
 | D-12 | La secretaria registra los horarios: permiso `SCHEDULE_MANAGE` para ADMIN y SECRETARIA | tarea 002, §4.3 |
-| D-13 | Alta de cuentas para profesionales: posterior al MVP; endpoints estipulados; mientras tanto, por migración | §4.13 |
+| D-13 | ~~Alta de cuentas para profesionales: posterior al MVP~~ Reemplazada por D-24 | §4.13 |
 | D-14 | Odontograma completo: simbología en `dental_condition_symbols`, alcance SPAN para prótesis, categoría periodontal y rango de grado | `schema.dbml`, §4.5 |
 | D-15 | appointments lee el vínculo cita→atención con EncounterRepository (solo lectura) para evitar el ciclo con clinical | §4.3 |
 | D-16 | Reemplazar los ítems de una receta DRAFT borra sus filas de `prescription_items`; es la única excepción a «sin DELETE en datos clínicos», porque un borrador nunca se entregó al paciente. Los ítems de una receta ISSUED nunca se borran | §4.7 |
@@ -625,3 +627,4 @@ quitar RECORD_* de ADMIN en la semilla (hoy ADMIN = todos).
 | D-8c | El REVOKE DELETE de payments no se aplica por rol (la app y Flyway usan el mismo usuario); en su lugar, trigger `BEFORE DELETE` que lanza excepción, así se cumple también en pruebas | Trigger BEFORE DELETE (provisional) | 012 |
 | D-25 | Estadísticas con consultas nativas agregadas en un repositorio de solo lectura (`DashboardRepository`), no por Directories; la regla de saldo vive también en SQL y el IT comprueba que coincide con `GET /patients/{id}/account` | Repositorio nativo (provisional) | 020 |
 | D-26 | El dashboard de estadísticas es solo para ADMIN (ingresos sensibles); `DASHBOARD_VIEW` del odontólogo queda sin uso | Solo ADMIN (provisional) | 020 |
+| D-24 | Gestión de cuentas por el ADMIN: alta de ODONTOLOGO y SECRETARIA, roles, contraseña temporal, activar/desactivar; ADMIN no se crea por API; sin cambio forzado de contraseña en el primer login (requiere columna nueva) | Solo ADMIN; contraseña temporal sin forzar cambio (provisional, a confirmar) | 019 |

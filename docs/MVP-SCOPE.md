@@ -42,7 +42,7 @@ Contexto: `docs/CONTEXT.md`. Plan por módulo: `docs/IMPLEMENTATION-PLAN.md`.
 - RF15 Reprogramar por WhatsApp (pacientes registrados), además de en recepción y desde el recordatorio.
 - RF11–RF15 también por texto libre: el bot entiende lenguaje natural (intención y datos) además de menú y
   botones; la IA interpreta, el backend decide y escribe (D-19, D-20).
-- RNF01 Roles ADMIN, ODONTOLOGO, SECRETARIA fijos; login por email; sin UI de usuarios ni permisos.
+- RNF01 Roles ADMIN, ODONTOLOGO, SECRETARIA fijos; login por email; el ADMIN gestiona usuarios (D-24); sin UI de permisos.
 - RNF02 Trazabilidad (Envers). RNF03 Bot sin datos clínicos.
 - RNF04 Datos bajo control de la clínica: VPS contratado a nombre de la clínica (sin SaaS del desarrollador ni
   licencia), sin borrado físico, respaldos automáticos (VPS + Google Drive de la clínica), exportación completa
@@ -52,11 +52,9 @@ Contexto: `docs/CONTEXT.md`. Plan por módulo: `docs/IMPLEMENTATION-PLAN.md`.
 
 ## Fuera del MVP (no implementar)
 RF16 citas por terceros · RNF07 firma
-electrónica · bot para pacientes nuevos · facturación SRI · UI de usuarios/permisos ·
+electrónica · bot para pacientes nuevos · facturación SRI ·
 recordatorio del mismo día · sincronización Google → sistema · pruebas de restauración de respaldos ·
 conjunto de evaluación del NLU (queda como recomendación de la tesis, D-23).
-
-Los módulos existentes de creación de usuarios se conservan, pero no se exponen ni se amplían.
 
 ## Decisiones (no cambiar sin aprobación)
 - Toda atención tiene cita; paciente sin cita = cita `source=WALK_IN`.
