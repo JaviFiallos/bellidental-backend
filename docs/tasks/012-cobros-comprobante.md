@@ -8,7 +8,7 @@ comprobante interno en PDF y puede anular un pago con motivo. El **saldo nunca s
 Saldo = Σ(`price` × `quantity`) de tratamientos no anulados en atenciones no anuladas − Σ pagos no anulados.
 Puede ser negativo (saldo a favor).
 
-Decisiones (se anotan en el plan, §6; provisionales):
+Decisiones (anotadas en el plan, §6; confirmadas el 2026-10-21):
 - **D-8b**: `BillingDirectory` **no se crea** (nadie la necesita). La 020 (estadísticas) lee agregados con consultas
   nativas (D-25).
 - **D-8c**: el REVOKE DELETE de las notas SQL no se aplica por rol (la app y Flyway usan el mismo usuario). En su
@@ -141,7 +141,7 @@ día (o un día distinto: 101, 102, 103) para no chocar en el EXCLUDE de citas.
   40.00; anular de nuevo → 409.
 - `createPayment_asOdontologo_returnsForbidden`: 403.
 
-## Decisiones provisionales (confirmar con el usuario)
+## Decisiones (confirmadas por el usuario el 2026-10-21)
 - Métodos de pago: EFECTIVO, TRANSFERENCIA, TARJETA (los del esquema).
 - Un pago puede exceder el saldo (queda a favor); no se bloquea.
 - Anular pago lo puede hacer también SECRETARIA (D-8, ya tomada).

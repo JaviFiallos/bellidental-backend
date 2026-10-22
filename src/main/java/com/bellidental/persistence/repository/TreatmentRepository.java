@@ -14,6 +14,10 @@ public interface TreatmentRepository extends JpaRepository<Treatment, Long> {
 
     List<Treatment> findByActiveTrueOrderByCodeAsc();
 
+    List<Treatment> findAllByOrderByCodeAsc();
+
+    boolean existsByCodeIgnoreCase(String code);
+
     List<Treatment> findByCodeInAndActiveTrue(Collection<String> codes);
 
     @Query(value = "SELECT * FROM treatment_catalog WHERE active = true " +

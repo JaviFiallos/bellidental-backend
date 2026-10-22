@@ -3,7 +3,7 @@
 ## Objetivo
 **Requerimiento nuevo del usuario**: «el doctor (director, ADMIN) puede manejar usuarios: crearlos, modificarlos,
 etc.». Contradice `MVP-SCOPE.md` («sin UI de usuarios») y D-13 (alta de cuentas posterior al MVP). El usuario lo
-pidió de forma explícita, así que se implementa con la decisión **provisional D-24**, que reemplaza a D-13. Esta
+pidió de forma explícita, así que se implementa con la decisión **D-24** (confirmada el 2026-10-21), que reemplaza a D-13. Esta
 tarea amplía el módulo `identity` (ya tiene `api`, `api/dto`, `application`; se añade `domain`; no se reorganiza).
 
 Base: endpoints estipulados en plan §4.13, más `POST /api/v1/users` para crear y `PUT /users/{id}/roles`. Sin
@@ -113,8 +113,8 @@ Todos los endpoints nuevos llevan `@PreAuthorize("hasRole('ADMIN')")`, salvo `PU
   ese usuario 401; `deactivate` del propio director (`11111111-1111-1111-1111-111111111111`) → 409; `activate` del
   usuario → su login vuelve a dar 200.
 
-## Decisiones provisionales (confirmar con el usuario)
-**D-24 (provisional, a confirmar mañana):**
+## Decisiones (confirmadas)
+**D-24 (confirmada por el usuario el 2026-10-21):**
 - Solo ADMIN gestiona usuarios. Puede crear **ODONTOLOGO y SECRETARIA**; **no** puede crear ADMIN por API (los
   administradores siguen por semilla/migración). Cambia lo estipulado en §4.13 (allí SECRETARIA tampoco se creaba
   por API).

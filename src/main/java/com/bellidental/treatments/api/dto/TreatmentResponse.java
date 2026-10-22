@@ -7,5 +7,7 @@ public record TreatmentResponse(
         String code,
         String name,
         String description,
-        BigDecimal basePrice
+        BigDecimal basePrice,
+        Long specialtyId,
+        boolean active
 ) {}

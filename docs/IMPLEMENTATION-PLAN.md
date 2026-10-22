@@ -110,6 +110,7 @@ tests de reglas puras). La columna `*IT` y los tests listados en §4 son orienta
 | 018e | Preparación del VPS: `deploy/vps-setup.sh` y registro de la configuración del servidor | — | 018a | — |
 | 019 | Gestión de usuarios por el ADMIN: crear, roles, reset, desactivar, cambio de contraseña (D-24, reemplaza D-13) | — | 003 | `UserManagementIT` + `PasswordRulesTest` |
 | 020 | Estadísticas del negocio: `GET /dashboard/summary` (D-25, D-26) | — | 012 | `DashboardSummaryIT` + `NoShowRateTest` |
+| 021 | Catálogo de tratamientos y especialidades administrable por el ADMIN (D-27) | V17 | 010a, 013 | `CatalogAdminIT` |
 
 (007 y 008 van separadas: CIE-10 en `V7__icd10_catalog.sql` y atención en `V7_1__encounters.sql`, para no renumerar 009+.)
 (El historial inmediato `GET /patients/{id}/clinical-summary` de §4.4 sale de la 008: es la tarea 011c.)
@@ -582,6 +583,9 @@ el usuario).
 | Tratamientos | lectura* | registrar | solo vía estado de cuenta | precios del catálogo |
 | Cobros | todo + anular | nada | registrar, consultar, anular | nada |
 | Auditoría, exportación | sí | no | no | no |
+| Estadísticas del negocio (`/dashboard/summary`, con dinero) | sí | no (vista propia pendiente, D-26b) | no | no |
+| Gestión de usuarios | sí | no | no | no |
+| Catálogo de tratamientos y especialidades (crear, editar, desactivar) | sí | lectura | no | precios públicos |
 
 \* El director tiene además `ODONTOLOGO`. Si se quiere que ADMIN sin ODONTOLOGO no vea clínico,
 quitar RECORD_* de ADMIN en la semilla (hoy ADMIN = todos).
@@ -615,6 +619,17 @@ quitar RECORD_* de ADMIN en la semilla (hoy ADMIN = todos).
 | D-22 | Número del bot = chip prepago dedicado (no un número personal ni el de recepción). Límites confirmados: 250 destinatarios/24 h por portafolio, máx. 2 números | §4.11, `WHATSAPP-SETUP.md` |
 | D-23 | Conjunto de evaluación del NLU (precisión por intención, tareas completadas, derivaciones, costo): fuera del MVP, queda como recomendación de la tesis | `MVP-SCOPE.md` |
 
+**Confirmadas por el usuario (2026-10-21):**
+| ID | Decisión | Dónde |
+|---|---|---|
+| D-8b | No se crea `BillingDirectory`: nadie fuera de cobros la necesita; es solo una decisión de código, no cambia quién cobra. Cobran y consultan saldos SECRETARIA y ADMIN (el director es opcional) | §4.8, tarea 012 |
+| D-8c | El REVOKE DELETE de `payments` no se aplica por rol (la app y Flyway usan el mismo usuario); en su lugar, trigger `BEFORE DELETE` que lanza excepción. Los pagos solo se anulan (con motivo) y la anulación queda en Envers | §4.8, tarea 012 |
+| D-12b | Métodos de pago EFECTIVO, TRANSFERENCIA y TARJETA; un abono puede exceder la deuda y dejar saldo a favor | tarea 012 |
+| D-24 | Gestión de cuentas solo por el ADMIN: crea y desactiva ODONTOLOGO y SECRETARIA; ADMIN no se crea por API; email, roles, contraseña temporal y activar/desactivar; sin cambio forzado de contraseña en el primer login (requiere columna nueva); reemplaza D-13 | §4.13, tarea 019 |
+| D-25 | Estadísticas con consultas nativas agregadas en un repositorio de solo lectura (`DashboardRepository`), no por Directories; la regla de saldo vive también en SQL y el IT comprueba que coincide con `GET /patients/{id}/account`. Se exponen por un único endpoint `GET /dashboard/summary` | tarea 020 |
+| D-26 | El dashboard con cifras de dinero es solo para ADMIN (el director). El odontólogo tendrá otra vista sin dinero (D-26b, pendiente) | tarea 020 |
+| D-27 | Catálogo de tratamientos y especialidades administrable por el ADMIN (CRUD por API, activar/desactivar, sin `DELETE`); columna opcional `treatment_catalog.specialty_id` solo para filtrar (no restringe al odontólogo); `code` inmutable; auditado con Envers | tarea 021 |
+
 **Pendientes:**
 | ID | Decisión | Propuesta | Afecta |
 |---|---|---|---|
@@ -623,8 +638,4 @@ quitar RECORD_* de ADMIN en la semilla (hoy ADMIN = todos).
 | D-14c | Odontóloga: ¿caries tratada = obturación (FILLING) y extracción indicada realizada = perdido por caries (MISSING_CARIES)? | sí (CARIES→FILLING, EXTRACTION→MISSING_CARIES) | 010b |
 | D-20b | Proveedor y modelo de IA para el NLU (se evaluarán opciones baratas, incluidos modelos chinos alojados fuera de China) | Decidir en 016e | 016e |
 | D-21b | ¿Avisar a recepción cuando el bot agenda una urgencia? Hoy no hay bandeja: la cita aparece en la agenda con `source=BOT` | No avisar en el MVP | 016a |
-| D-8b | No se crea `BillingDirectory`: nadie fuera de cobros la necesita; la 020 lee agregados con consultas nativas (D-25) | No crearla (provisional) | 012, 020 |
-| D-8c | El REVOKE DELETE de payments no se aplica por rol (la app y Flyway usan el mismo usuario); en su lugar, trigger `BEFORE DELETE` que lanza excepción, así se cumple también en pruebas | Trigger BEFORE DELETE (provisional) | 012 |
-| D-25 | Estadísticas con consultas nativas agregadas en un repositorio de solo lectura (`DashboardRepository`), no por Directories; la regla de saldo vive también en SQL y el IT comprueba que coincide con `GET /patients/{id}/account` | Repositorio nativo (provisional) | 020 |
-| D-26 | El dashboard de estadísticas es solo para ADMIN (ingresos sensibles); `DASHBOARD_VIEW` del odontólogo queda sin uso | Solo ADMIN (provisional) | 020 |
-| D-24 | Gestión de cuentas por el ADMIN: alta de ODONTOLOGO y SECRETARIA, roles, contraseña temporal, activar/desactivar; ADMIN no se crea por API; sin cambio forzado de contraseña en el primer login (requiere columna nueva) | Solo ADMIN; contraseña temporal sin forzar cambio (provisional, a confirmar) | 019 |
+| D-26b | Estadísticas propias del odontólogo (sin cifras de dinero): pacientes atendidos, atenciones, tratamientos y diagnósticos frecuentes. Sin tarea por ahora | Posterior | — |

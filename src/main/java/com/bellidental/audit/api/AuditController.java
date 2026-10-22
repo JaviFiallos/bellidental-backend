@@ -12,7 +12,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
-import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/audit")
@@ -23,7 +22,7 @@ public class AuditController {
 
     @GetMapping("/{entity}/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ApiResponse<List<AuditEntryResponse>>> getHistory(@PathVariable String entity, @PathVariable UUID id) {
+    public ResponseEntity<ApiResponse<List<AuditEntryResponse>>> getHistory(@PathVariable String entity, @PathVariable String id) {
         return ResponseEntity.ok(ApiResponse.ok(auditService.findHistory(entity, id)));
     }
 }

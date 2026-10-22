@@ -6,8 +6,10 @@ import com.bellidental.clinical.EncounterSummary;
 import com.bellidental.odontogram.FindingSummary;
 import com.bellidental.odontogram.OdontogramDirectory;
 import com.bellidental.persistence.entity.PerformedTreatment;
+import com.bellidental.persistence.entity.Specialty;
 import com.bellidental.persistence.entity.Treatment;
 import com.bellidental.persistence.repository.PerformedTreatmentRepository;
+import com.bellidental.persistence.repository.SpecialtyRepository;
 import com.bellidental.persistence.repository.ToothRepository;
 import com.bellidental.persistence.repository.ToothSurfaceRepository;
 import com.bellidental.persistence.repository.TreatmentRepository;
@@ -17,8 +19,10 @@ import com.bellidental.shared.exception.InvalidInputException;
 import com.bellidental.shared.exception.ResourceNotFoundException;
 import com.bellidental.shared.time.ClinicClock;
 import com.bellidental.treatments.api.dto.PerformedTreatmentResponse;
+import com.bellidental.treatments.api.dto.CreateTreatmentRequest;
 import com.bellidental.treatments.api.dto.RecordTreatmentRequest;
 import com.bellidental.treatments.api.dto.TreatmentResponse;
+import com.bellidental.treatments.api.dto.UpdateTreatmentRequest;
 import com.bellidental.treatments.api.dto.VoidTreatmentRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -39,6 +43,7 @@ public class TreatmentService {
     private static final int DEFAULT_QUANTITY = 1;
 
     private final TreatmentRepository treatmentRepository;
+    private final SpecialtyRepository specialtyRepository;
     private final PerformedTreatmentRepository performedTreatmentRepository;
     private final ToothRepository toothRepository;
     private final ToothSurfaceRepository toothSurfaceRepository;
@@ -46,12 +51,52 @@ public class TreatmentService {
     private final OdontogramDirectory odontogramDirectory;
     private final ClinicClock clinicClock;
 
+    /**
+     * Catálogo activo. Con {@code specialtyId} devuelve los de esa especialidad y los que no tienen ninguna.
+     */
     @Transactional(readOnly = true)
-    public List<TreatmentResponse> searchCatalog(String query) {
+    public List<TreatmentResponse> searchCatalog(String query, Long specialtyId) {
         List<Treatment> treatments = (query == null || query.isBlank())
                 ? treatmentRepository.findByActiveTrueOrderByCodeAsc()
                 : treatmentRepository.searchActiveByCodeOrName(requireValidQuery(query));
-        return treatments.stream().map(this::toTreatmentResponse).toList();
+        return treatments.stream()
+                .filter(treatment -> specialtyId == null || treatment.getSpecialtyId() == null
+                        || specialtyId.equals(treatment.getSpecialtyId()))
+                .map(this::toTreatmentResponse)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<TreatmentResponse> listAll() {
+        return treatmentRepository.findAllByOrderByCodeAsc().stream().map(this::toTreatmentResponse).toList();
+    }
+
+    @Transactional
+    public TreatmentResponse create(CreateTreatmentRequest request) {
+        String code = request.code().trim().toUpperCase();
+        if (treatmentRepository.existsByCodeIgnoreCase(code)) {
+            throw new BusinessException("El código '" + code + "' ya existe.");
+        }
+        Treatment treatment = new Treatment();
+        treatment.setCode(code);
+        treatment.setActive(true);
+        applyFields(treatment, request.name(), request.description(), request.basePrice(), request.specialtyId());
+        return toTreatmentResponse(treatmentRepository.save(treatment));
+    }
+
+    /** Reemplaza nombre, descripción, precio y especialidad; el código no se cambia. */
+    @Transactional
+    public TreatmentResponse update(Long treatmentId, UpdateTreatmentRequest request) {
+        Treatment treatment = findTreatment(treatmentId);
+        applyFields(treatment, request.name(), request.description(), request.basePrice(), request.specialtyId());
+        return toTreatmentResponse(treatmentRepository.save(treatment));
+    }
+
+    @Transactional
+    public TreatmentResponse setActive(Long treatmentId, boolean active) {
+        Treatment treatment = findTreatment(treatmentId);
+        treatment.setActive(active);
+        return toTreatmentResponse(treatmentRepository.save(treatment));
     }
 
     @Transactional
@@ -117,6 +162,27 @@ public class TreatmentService {
         performed.setVoidedAt(clinicClock.now());
         performed.setVoidReason(request.voidReason());
         performedTreatmentRepository.save(performed);
+    }
+
+    private Treatment findTreatment(Long treatmentId) {
+        return treatmentRepository.findById(treatmentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Tratamiento", treatmentId));
+    }
+
+    private void applyFields(Treatment treatment, String name, String description, BigDecimal basePrice, Long specialtyId) {
+        if (specialtyId != null) {
+            requireActiveSpecialty(specialtyId);
+        }
+        treatment.setName(name.trim());
+        treatment.setDescription(description);
+        treatment.setBasePrice(basePrice);
+        treatment.setSpecialtyId(specialtyId);
+    }
+
+    private void requireActiveSpecialty(Long specialtyId) {
+        specialtyRepository.findById(specialtyId)
+                .filter(Specialty::isActive)
+                .orElseThrow(() -> new InvalidInputException("Especialidad inexistente o inactiva."));
     }
 
     private String requireValidQuery(String query) {
@@ -199,7 +265,9 @@ public class TreatmentService {
                 treatment.getCode(),
                 treatment.getName(),
                 treatment.getDescription(),
-                treatment.getBasePrice()
+                treatment.getBasePrice(),
+                treatment.getSpecialtyId(),
+                treatment.isActive()
         );
     }
 
