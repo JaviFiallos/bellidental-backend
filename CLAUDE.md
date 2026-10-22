@@ -13,8 +13,11 @@
    Tests mínimos según `testing/SKILL.md`: un `*IT` por tarea con endpoints (flujo principal + el fallo clave,
    2–3 casos) y unit tests solo para reglas puras críticas de `domain/` (máx. 4 casos). Nada más.
 2. Ejecutar: `gemini -p "Ejecuta docs/tasks/NNN-nombre.md siguiendo GEMINI.md."`
-3. Claude revisa la sección Resultado y `git diff --stat` (y los archivos críticos si hace falta); corre
-   `./mvnw -q clean verify` una vez y lee solo los totales de los reports.
+3. Claude revisa la sección Resultado (con los totales copiados de la consola) y `git diff --stat` (y los archivos
+   críticos si hace falta). No corre `./mvnw -q clean verify` salvo que (a) haya corregido código él mismo o
+   (b) la tarea toque algo de toda la app: migraciones, seguridad (filtros, permisos, `SecurityConfig`), manejo
+   global de errores o configuración. Si lo corre, una vez y solo los totales. El paso de commit de Gemini vuelve
+   a correr la verificación.
 4. Claude escribe `## Revisión`:
    - No cumple → `Estado: CORRECCIONES` + lista numerada → volver al paso 2.
    - Cumple → `Estado: APROBADO`.
