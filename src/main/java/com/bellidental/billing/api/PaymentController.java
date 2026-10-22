@@ -2,6 +2,7 @@ package com.bellidental.billing.api;
 
 import com.bellidental.billing.api.dto.AccountResponse;
 import com.bellidental.billing.api.dto.CreatePaymentRequest;
+import com.bellidental.billing.api.dto.PaymentListItemResponse;
 import com.bellidental.billing.api.dto.PaymentResponse;
 import com.bellidental.billing.api.dto.VoidPaymentRequest;
 import com.bellidental.billing.application.AccountService;
@@ -23,6 +24,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -39,6 +41,12 @@ public class PaymentController {
     public ResponseEntity<ApiResponse<PaymentResponse>> registerPayment(@PathVariable UUID patientId, @Valid @RequestBody CreatePaymentRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.ok(paymentService.register(patientId, request)));
+    }
+
+    @GetMapping("/patients/{patientId}/payments")
+    @PreAuthorize("hasAuthority('BILLING_READ')")
+    public ResponseEntity<ApiResponse<List<PaymentListItemResponse>>> listPayments(@PathVariable UUID patientId) {
+        return ResponseEntity.ok(ApiResponse.ok(paymentService.listByPatient(patientId)));
     }
 
     @GetMapping("/patients/{patientId}/account")

@@ -5,6 +5,7 @@ import com.bellidental.appointments.api.dto.CreateAppointmentRequest;
 import com.bellidental.billing.api.dto.AccountResponse;
 import com.bellidental.billing.api.dto.AccountSessionResponse;
 import com.bellidental.billing.api.dto.CreatePaymentRequest;
+import com.bellidental.billing.api.dto.PaymentListItemResponse;
 import com.bellidental.billing.api.dto.PaymentResponse;
 import com.bellidental.billing.api.dto.VoidPaymentRequest;
 import com.bellidental.clinical.api.dto.AddDiagnosisRequest;
@@ -22,6 +23,7 @@ import com.bellidental.shared.enums.DiagnosisCertainty;
 import com.bellidental.shared.enums.DocumentType;
 import com.bellidental.shared.enums.PaymentMethod;
 import com.bellidental.shared.response.ApiResponse;
+import com.bellidental.support.MutableClock;
 import com.bellidental.support.TestcontainersConfiguration;
 import com.bellidental.treatments.api.dto.RecordTreatmentRequest;
 import com.bellidental.treatments.api.dto.TreatmentResponse;
@@ -65,6 +67,9 @@ class PaymentFlowIT {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private MutableClock clock;
+
     private HttpHeaders secretariaHeaders;
     private HttpHeaders odontologaHeaders;
     private UUID patientId;
@@ -73,6 +78,7 @@ class PaymentFlowIT {
 
     @BeforeEach
     void setUp() {
+        clock.reset();
         secretariaHeaders = loginAs("secretaria@bellidental.local");
         odontologaHeaders = loginAs("odontologa@bellidental.local");
 
@@ -145,12 +151,45 @@ class PaymentFlowIT {
     }
 
     @Test
-    void createPayment_asOdontologo_returnsForbidden() {
-        ResponseEntity<ApiResponse<PaymentResponse>> response = exchange(
+    void createAndListPayments_asOdontologo_returnsBothWithVoided() {
+        UUID encounterId = completedEncounterWithCharge(LocalDate.now().plusDays(104));
+
+        ResponseEntity<ApiResponse<PaymentResponse>> odoPayment = exchange(
                 HttpMethod.POST, "/api/v1/patients/" + patientId + "/payments",
-                new CreatePaymentRequest(new BigDecimal("10.00"), PaymentMethod.TARJETA, null), odontologaHeaders,
+                new CreatePaymentRequest(new BigDecimal("10.00"), PaymentMethod.TARJETA, encounterId), odontologaHeaders,
                 new ParameterizedTypeReference<>() {});
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(odoPayment.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+
+        PaymentResponse secPayment = registerPayment(encounterId, new BigDecimal("5.00"));
+        ResponseEntity<ApiResponse<PaymentResponse>> voidResponse = exchange(
+                HttpMethod.POST, "/api/v1/payments/" + secPayment.id() + "/void",
+                new VoidPaymentRequest("Cobro erróneo"), secretariaHeaders,
+                new ParameterizedTypeReference<>() {});
+        assertThat(voidResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+
+        ResponseEntity<ApiResponse<List<PaymentListItemResponse>>> listResponse = exchange(
+                HttpMethod.GET, "/api/v1/patients/" + patientId + "/payments", null, odontologaHeaders,
+                new ParameterizedTypeReference<>() {});
+        assertThat(listResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+        List<PaymentListItemResponse> items = listResponse.getBody().getData();
+        assertThat(items).hasSize(2);
+
+        PaymentListItemResponse first = items.get(0);
+        assertThat(first.amount()).isEqualByComparingTo("5.00");
+        assertThat(first.voided()).isTrue();
+        assertThat(first.voidReason()).isEqualTo("Cobro erróneo");
+
+        PaymentListItemResponse second = items.get(1);
+        assertThat(second.amount()).isEqualByComparingTo("10.00");
+        assertThat(second.receivedByName()).isEqualTo("odontologa");
+    }
+
+    @Test
+    void listPayments_unknownPatient_returnsNotFound() {
+        ResponseEntity<ApiResponse<List<PaymentListItemResponse>>> response = exchange(
+                HttpMethod.GET, "/api/v1/patients/" + UUID.randomUUID() + "/payments", null, odontologaHeaders,
+                new ParameterizedTypeReference<>() {});
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     }
 
     /** Atención completada con un tratamiento de 40.00 (cargo) en un día propio del test. */

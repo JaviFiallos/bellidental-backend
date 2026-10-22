@@ -1,6 +1,7 @@
 package com.bellidental.billing.application;
 
 import com.bellidental.billing.api.dto.CreatePaymentRequest;
+import com.bellidental.billing.api.dto.PaymentListItemResponse;
 import com.bellidental.billing.api.dto.PaymentResponse;
 import com.bellidental.billing.api.dto.VoidPaymentRequest;
 import com.bellidental.billing.domain.ReceiptNumber;
@@ -8,7 +9,9 @@ import com.bellidental.clinical.ClinicalDirectory;
 import com.bellidental.clinical.EncounterSummary;
 import com.bellidental.patients.PatientDirectory;
 import com.bellidental.persistence.entity.Payment;
+import com.bellidental.persistence.entity.User;
 import com.bellidental.persistence.repository.PaymentRepository;
+import com.bellidental.persistence.repository.UserRepository;
 import com.bellidental.security.CurrentUser;
 import com.bellidental.shared.exception.BusinessException;
 import com.bellidental.shared.exception.ResourceNotFoundException;
@@ -17,7 +20,13 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.RoundingMode;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -26,6 +35,7 @@ public class PaymentService {
     private final PaymentRepository paymentRepository;
     private final PatientDirectory patientDirectory;
     private final ClinicalDirectory clinicalDirectory;
+    private final UserRepository userRepository;
     private final CurrentUser currentUser;
     private final ClinicClock clinicClock;
 
@@ -57,6 +67,34 @@ public class PaymentService {
         payment.setVoidedAt(clinicClock.now());
         payment.setVoidReason(request.voidReason());
         return toResponse(paymentRepository.save(payment));
+    }
+
+    @Transactional(readOnly = true)
+    public List<PaymentListItemResponse> listByPatient(UUID patientId) {
+        patientDirectory.findById(patientId)
+                .orElseThrow(() -> new ResourceNotFoundException("Paciente no encontrado"));
+        List<Payment> payments = paymentRepository.findByPatientIdOrderByPaidAtDesc(patientId);
+        Set<UUID> userIds = payments.stream()
+                .map(Payment::getReceivedBy)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        Map<UUID, String> usernames = userRepository.findAllById(userIds).stream()
+                .collect(Collectors.toMap(User::getId, User::getUsername));
+        return payments.stream()
+                .map(p -> new PaymentListItemResponse(
+                        p.getId(),
+                        p.getEncounterId(),
+                        p.getAmount() != null ? p.getAmount().setScale(2, RoundingMode.HALF_UP) : null,
+                        p.getMethod(),
+                        p.getReceiptNumber(),
+                        p.getPaidAt(),
+                        p.getReceivedBy(),
+                        usernames.get(p.getReceivedBy()),
+                        p.getVoidedAt() != null,
+                        p.getVoidedAt(),
+                        p.getVoidReason()
+                ))
+                .toList();
     }
 
     @Transactional(readOnly = true)

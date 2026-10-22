@@ -15,4 +15,6 @@ public interface PaymentRepository extends JpaRepository<Payment, UUID> {
     long nextReceiptSequence();
 
     List<Payment> findByPatientIdAndVoidedAtIsNullOrderByPaidAtAsc(UUID patientId);
+
+    List<Payment> findByPatientIdOrderByPaidAtDesc(UUID patientId);
 }
