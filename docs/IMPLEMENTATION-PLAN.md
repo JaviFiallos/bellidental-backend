@@ -111,6 +111,10 @@ tests de reglas puras). La columna `*IT` y los tests listados en §4 son orienta
 | 019 | Gestión de usuarios por el ADMIN: crear, roles, reset, desactivar, cambio de contraseña (D-24, reemplaza D-13) | — | 003 | `UserManagementIT` + `PasswordRulesTest` |
 | 020 | Estadísticas del negocio: `GET /dashboard/summary` (D-25, D-26) | — | 012 | `DashboardSummaryIT` + `NoShowRateTest` |
 | 021 | Catálogo de tratamientos y especialidades administrable por el ADMIN (D-27) | V17 | 010a, 013 | `CatalogAdminIT` |
+| 022 | Cobros: el odontólogo cobra (D-8d) y `GET /patients/{id}/payments` (G-11 del frontend) | V18 (solo datos) | 012 | `PaymentFlowIT` (casos cambiados) |
+| 023 | Cambiar contraseña: actual incorrecta → 400 (G-13 del frontend) | — | 019 | `UserManagementIT` (aserción) |
+| 024 | Estadísticas: serie por día, top 3 tratamientos y top 3 diagnósticos | — | 020 | `DashboardSummaryIT` (aserciones) |
+| 025 | Auditoría: lista paginada `GET /audit` y historial completo de la atención (G-7 del frontend) | — | 013, 021 | `AuditLogIT` |
 
 (007 y 008 van separadas: CIE-10 en `V7__icd10_catalog.sql` y atención en `V7_1__encounters.sql`, para no renumerar 009+.)
 (El historial inmediato `GET /patients/{id}/clinical-summary` de §4.4 sale de la 008: es la tarea 011c.)
@@ -361,25 +365,28 @@ Paquete `com.bellidental.billing`. Migración V15: `payments`, secuencia de comp
 (`receipt_number` = `C-000001`), CHECK `amount > 0`, trigger BEFORE DELETE (D-8c).
 
 Reglas:
-- SECRETARIA (BILLING_CREATE) registra abono: monto, método, opcionalmente la atención de la sesión.
+- SECRETARIA y ODONTOLOGO (BILLING_CREATE) registran abono: monto, método, opcionalmente la atención de la sesión.
 - **Saldo** = Σ(price × quantity) de tratamientos no anulados en atenciones no anuladas
   − Σ pagos no anulados. Nunca se guarda. Puede ser negativo (saldo a favor).
 - `GET /patients/{id}/account` (BILLING_READ): estado de cuenta tipo ficha rápida — por sesión:
   fecha, tratamientos, profesional, cargo, abono, saldo acumulado. Sin diagnósticos.
+- `GET /patients/{id}/payments` (BILLING_READ): lista de pagos del paciente (vigentes y anulados), más reciente primero, con quién lo recibió (username) y motivo de anulación si aplica.
 - `GET /payments/{id}/receipt` PDF: "Comprobante interno — no válido como factura", "CONFIDENCIAL",
   paciente, detalle, abono, saldo, línea de firma del paciente.
-- Anular pago (D-8): ADMIN y SECRETARIA (es quien cobra), con `void_reason` obligatorio; queda en
-  Envers. Usa el permiso BILLING_CREATE (no hace falta tocar la semilla).
+- Anular pago (D-8, D-8d): ADMIN, SECRETARIA y ODONTOLOGO, con `void_reason` obligatorio; queda en
+  Envers. Usa el permiso BILLING_CREATE.
 Unit: cálculo de saldo (anulados excluidos, pago sin atención, saldo a favor), secuencia.
 
-### 4.9 Auditoría — tarea 013 (RNF02)
+### 4.9 Auditoría — tarea 013, 025 (RNF02)
 - Envers `@Audited` en: clinical_records, medical_history_entries, encounters, encounter_diagnoses,
   dental_findings, performed_treatments, prescriptions, prescription_items, payments, appointments,
   patients. V16 crea `revision_info` y las tablas `*_aud`.
 - `RevisionListener` guarda `user_id` del usuario autenticado (bot → `bot_whatsapp`; jobs → null).
 - Spring Data Auditing mantiene `created_at/updated_at`.
 - `GET /audit/{entity}/{id}` (ADMIN): quién, cuándo, qué cambió.
-IT: añadir a `EncounterFlowIT` que la revisión registra al odontólogo.
+- `GET /audit` (ADMIN): lista paginada de revisiones por rango de fechas, entidad, usuario o paciente.
+- `GET /audit/encounters/{id}/full` (ADMIN): historial cronológico de la atención y sus entidades hijas (diagnósticos, hallazgos, tratamientos, recetas e ítems).
+IT: añadir a `EncounterFlowIT` que la revisión registra al odontólogo; `AuditLogIT` para lista paginada y full encounter.
 
 ### 4.10 Google Calendar — tarea 014 (RF07, una vía)
 Paquete `com.bellidental.calendar`. La agenda del sistema es la única fuente; Google es un espejo
@@ -564,7 +571,7 @@ El ADMIN gestiona cuentas (reemplaza D-13: el requerimiento del usuario lo pidi�
 | `POST /api/v1/users/{id}/reset-password` | ADMIN | `{temporaryPassword}` | Reemplaza el hash; sin cambio forzado en el primer login |
 | `POST /api/v1/users/{id}/deactivate` · `activate` | ADMIN | — | `active` = false / true; no se puede desactivar la propia cuenta |
 | `POST /api/v1/professionals/{id}/access` | ADMIN | `{email, temporaryPassword}` | Crea la cuenta ODONTOLOGO y enlaza `professionals.user_id` (201). 409 si el profesional ya tiene cuenta |
-| `PUT /api/v1/auth/password` | autenticado | `{currentPassword, newPassword}` | Cambia la propia contraseña (mín. 10 caracteres); 401 si la actual no coincide |
+| `PUT /api/v1/auth/password` | autenticado | `{currentPassword, newPassword}` | Cambia la propia contraseña (mín. 10 caracteres); 400 si la actual no coincide |
 
 Reglas: `DELETE /api/v1/users/{id}` se elimina (sustituido por desactivar); las contraseñas no se registran en
 logs ni en `toString`; los cambios de activo o roles surten efecto en la siguiente petición (el filtro JWT relee
@@ -581,7 +588,7 @@ el usuario).
 | Horarios de profesionales | sí | lectura | **registra** | lectura (disponibilidad) |
 | Historia, atención, odontograma, recetas | lectura* | todo | **nada** | **nada** |
 | Tratamientos | lectura* | registrar | solo vía estado de cuenta | precios del catálogo |
-| Cobros | todo + anular | nada | registrar, consultar, anular | nada |
+| Cobros | todo + anular | registrar, consultar, anular | registrar, consultar, anular | nada |
 | Auditoría, exportación | sí | no | no | no |
 | Estadísticas del negocio (`/dashboard/summary`, con dinero) | sí | no (vista propia pendiente, D-26b) | no | no |
 | Gestión de usuarios | sí | no | no | no |
@@ -622,13 +629,14 @@ quitar RECORD_* de ADMIN en la semilla (hoy ADMIN = todos).
 **Confirmadas por el usuario (2026-10-21):**
 | ID | Decisión | Dónde |
 |---|---|---|
-| D-8b | No se crea `BillingDirectory`: nadie fuera de cobros la necesita; es solo una decisión de código, no cambia quién cobra. Cobran y consultan saldos SECRETARIA y ADMIN (el director es opcional) | §4.8, tarea 012 |
+| D-8b | No se crea `BillingDirectory`: nadie fuera de cobros la necesita; es solo una decisión de código, no cambia quién cobra (quién cobra: ver D-8d). Cobran y consultan saldos SECRETARIA y ADMIN (el director es opcional) | §4.8, tarea 012 |
 | D-8c | El REVOKE DELETE de `payments` no se aplica por rol (la app y Flyway usan el mismo usuario); en su lugar, trigger `BEFORE DELETE` que lanza excepción. Los pagos solo se anulan (con motivo) y la anulación queda en Envers | §4.8, tarea 012 |
 | D-12b | Métodos de pago EFECTIVO, TRANSFERENCIA y TARJETA; un abono puede exceder la deuda y dejar saldo a favor | tarea 012 |
 | D-24 | Gestión de cuentas solo por el ADMIN: crea y desactiva ODONTOLOGO y SECRETARIA; ADMIN no se crea por API; email, roles, contraseña temporal y activar/desactivar; sin cambio forzado de contraseña en el primer login (requiere columna nueva); reemplaza D-13 | §4.13, tarea 019 |
 | D-25 | Estadísticas con consultas nativas agregadas en un repositorio de solo lectura (`DashboardRepository`), no por Directories; la regla de saldo vive también en SQL y el IT comprueba que coincide con `GET /patients/{id}/account`. Se exponen por un único endpoint `GET /dashboard/summary` | tarea 020 |
 | D-26 | El dashboard con cifras de dinero es solo para ADMIN (el director). El odontólogo tendrá otra vista sin dinero (D-26b, pendiente) | tarea 020 |
 | D-27 | Catálogo de tratamientos y especialidades administrable por el ADMIN (CRUD por API, activar/desactivar, sin `DELETE`); columna opcional `treatment_catalog.specialty_id` solo para filtrar (no restringe al odontólogo); `code` inmutable; auditado con Envers | tarea 021 |
+| D-8d | El odontólogo también cobra y anula pagos con motivo (permisos BILLING_CREATE y BILLING_READ). Reemplaza la parte de D-8b «cobran SECRETARIA y ADMIN» | §4.8, tarea 022 |
 
 **Pendientes:**
 | ID | Decisión | Propuesta | Afecta |

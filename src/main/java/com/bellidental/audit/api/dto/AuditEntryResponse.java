@@ -10,5 +10,7 @@ public record AuditEntryResponse(
         UUID userId,
         String username,
         String type,
-        List<FieldChangeResponse> changes
+        List<FieldChangeResponse> changes,
+        String entity,
+        String entityId
 ) {}

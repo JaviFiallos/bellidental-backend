@@ -18,6 +18,7 @@ import com.bellidental.persistence.entity.PrescriptionItem;
 import com.bellidental.persistence.entity.Specialty;
 import com.bellidental.persistence.entity.Treatment;
 import com.bellidental.persistence.entity.User;
+import com.bellidental.persistence.repository.AuditQueryRepository;
 import com.bellidental.persistence.repository.UserRepository;
 import com.bellidental.shared.exception.InvalidInputException;
 import com.bellidental.shared.exception.ResourceNotFoundException;
@@ -38,6 +39,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -47,7 +49,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class AuditService {
 
-    private static final Map<String, Class<?>> AUDITED_ENTITIES = Map.ofEntries(
+    public static final Map<String, Class<?>> AUDITED_ENTITIES = Map.ofEntries(
             Map.entry("clinical-records", ClinicalRecord.class),
             Map.entry("medical-history-entries", MedicalHistoryEntry.class),
             Map.entry("encounters", Encounter.class),
@@ -65,6 +67,7 @@ public class AuditService {
 
     private final EntityManager entityManager;
     private final UserRepository userRepository;
+    private final AuditQueryRepository auditQueryRepository;
 
     @Transactional(readOnly = true)
     public List<AuditEntryResponse> findHistory(String entityName, String id) {
@@ -98,11 +101,45 @@ public class AuditService {
                     revision.getUserId(),
                     findUsername(revision.getUserId()),
                     type.name(),
-                    changes
+                    changes,
+                    entityName,
+                    id
             ));
             previousValues = currentValues;
         }
         return entries;
+    }
+
+    @Transactional(readOnly = true)
+    public List<AuditEntryResponse> findEncounterFullHistory(UUID encounterId) {
+        if (!auditQueryRepository.existsEncounterAudit(encounterId)) {
+            throw new ResourceNotFoundException("Atención no encontrada en auditoría: " + encounterId);
+        }
+
+        List<AuditEntryResponse> allEntries = new ArrayList<>();
+        allEntries.addAll(findHistory("encounters", encounterId.toString()));
+
+        for (UUID diagId : auditQueryRepository.findEncounterDiagnosisIds(encounterId)) {
+            allEntries.addAll(findHistory("encounter-diagnoses", diagId.toString()));
+        }
+        for (UUID dfId : auditQueryRepository.findDentalFindingIds(encounterId)) {
+            allEntries.addAll(findHistory("dental-findings", dfId.toString()));
+        }
+        for (UUID ptId : auditQueryRepository.findPerformedTreatmentIds(encounterId)) {
+            allEntries.addAll(findHistory("performed-treatments", ptId.toString()));
+        }
+        List<UUID> rxIds = auditQueryRepository.findPrescriptionIds(encounterId);
+        for (UUID rxId : rxIds) {
+            allEntries.addAll(findHistory("prescriptions", rxId.toString()));
+        }
+        if (!rxIds.isEmpty()) {
+            for (UUID itemId : auditQueryRepository.findPrescriptionItemIds(rxIds)) {
+                allEntries.addAll(findHistory("prescription-items", itemId.toString()));
+            }
+        }
+
+        allEntries.sort(Comparator.comparing(AuditEntryResponse::at).thenComparing(AuditEntryResponse::revision));
+        return allEntries;
     }
 
     /** Convierte el id de la URL al tipo de la clave primaria de la entidad (bigint o uuid). */
