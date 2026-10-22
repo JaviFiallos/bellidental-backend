@@ -9,6 +9,7 @@ import com.bellidental.clinical.api.dto.AddDiagnosisRequest;
 import com.bellidental.clinical.api.dto.EncounterResponse;
 import com.bellidental.clinical.api.dto.Icd10Response;
 import com.bellidental.clinical.api.dto.OpenEncounterRequest;
+import com.bellidental.dashboard.api.dto.DailyStat;
 import com.bellidental.dashboard.api.dto.DashboardSummaryResponse;
 import com.bellidental.dashboard.api.dto.ProfessionalStats;
 import com.bellidental.identity.api.dto.AuthResponse;
@@ -43,6 +44,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
+import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 
@@ -116,6 +118,21 @@ class DashboardSummaryIT {
         assertThat(professionalAfter.revenue().subtract(professionalBefore.revenue())).isEqualByComparingTo("80.00");
 
         assertThat(getAccount().balance()).isEqualByComparingTo("50.00");
+
+        assertThat(after.byDay()).hasSize(1);
+        DailyStat todayStatAfter = after.byDay().get(0);
+        DailyStat todayStatBefore = before.byDay().get(0);
+        assertThat(todayStatAfter.date()).isEqualTo(today);
+        assertThat(todayStatAfter.completedEncounters() - todayStatBefore.completedEncounters()).isEqualTo(1);
+        assertThat(todayStatAfter.newPatients() - todayStatBefore.newPatients()).isEqualTo(1);
+        assertThat(todayStatAfter.collected().subtract(todayStatBefore.collected())).isEqualByComparingTo("30.00");
+
+        assertThat(after.topDiagnoses()).hasSizeLessThanOrEqualTo(3);
+        // Otros IT registran diagnósticos el mismo día: K02.1 puede no quedar en el top 3; se valida forma y orden.
+        assertThat(after.topDiagnoses()).isNotEmpty();
+        assertThat(after.topDiagnoses()).extracting(td -> td.occurrences()).isSortedAccordingTo(Comparator.reverseOrder());
+
+        assertThat(after.topTreatments()).hasSizeLessThanOrEqualTo(3);
     }
 
     @Test

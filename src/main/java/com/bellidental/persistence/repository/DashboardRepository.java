@@ -7,6 +7,8 @@ import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.sql.Date;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -111,7 +113,7 @@ public class DashboardRepository {
                         + "AND e.start_at >= :start AND e.start_at < :end "
                         + "GROUP BY tc.code, tc.name "
                         + "ORDER BY SUM(pt.quantity) DESC, SUM(pt.price * pt.quantity) DESC "
-                        + "LIMIT 5",
+                        + "LIMIT 3",
                 start, end).getResultList();
     }
 
@@ -135,6 +137,78 @@ public class DashboardRepository {
                 start, end));
     }
 
+    public Map<LocalDate, Long> appointmentsByDay(OffsetDateTime start, OffsetDateTime end, String zone) {
+        Query query = entityManager.createNativeQuery(
+                "SELECT CAST((start_at AT TIME ZONE :zone) AS date), COUNT(*) "
+                        + "FROM appointments "
+                        + "WHERE start_at >= :start AND start_at < :end "
+                        + "AND status NOT IN ('CANCELLED', 'RESCHEDULED') "
+                        + "GROUP BY 1");
+        query.setParameter("start", start);
+        query.setParameter("end", end);
+        query.setParameter("zone", zone);
+        return countsByDate(query);
+    }
+
+    public Map<LocalDate, Long> completedEncountersByDay(OffsetDateTime start, OffsetDateTime end, String zone) {
+        Query query = entityManager.createNativeQuery(
+                "SELECT CAST((closed_at AT TIME ZONE :zone) AS date), COUNT(*) "
+                        + "FROM encounters "
+                        + "WHERE status = 'COMPLETED' AND voided_at IS NULL "
+                        + "AND closed_at >= :start AND closed_at < :end "
+                        + "GROUP BY 1");
+        query.setParameter("start", start);
+        query.setParameter("end", end);
+        query.setParameter("zone", zone);
+        return countsByDate(query);
+    }
+
+    public Map<LocalDate, Long> newPatientsByDay(OffsetDateTime start, OffsetDateTime end, String zone) {
+        Query query = entityManager.createNativeQuery(
+                "SELECT CAST((created_at AT TIME ZONE :zone) AS date), COUNT(*) "
+                        + "FROM patients "
+                        + "WHERE created_at >= :start AND created_at < :end "
+                        + "AND deleted_at IS NULL "
+                        + "GROUP BY 1");
+        query.setParameter("start", start);
+        query.setParameter("end", end);
+        query.setParameter("zone", zone);
+        return countsByDate(query);
+    }
+
+    public Map<LocalDate, BigDecimal> collectedByDay(OffsetDateTime start, OffsetDateTime end, String zone) {
+        Query query = entityManager.createNativeQuery(
+                "SELECT CAST((paid_at AT TIME ZONE :zone) AS date), COALESCE(SUM(amount), 0) "
+                        + "FROM payments "
+                        + "WHERE voided_at IS NULL "
+                        + "AND paid_at >= :start AND paid_at < :end "
+                        + "GROUP BY 1");
+        query.setParameter("start", start);
+        query.setParameter("end", end);
+        query.setParameter("zone", zone);
+        Map<LocalDate, BigDecimal> amounts = new LinkedHashMap<>();
+        List<Object[]> rows = query.getResultList();
+        for (Object[] row : rows) {
+            amounts.put(toLocalDate(row[0]), money(row[1]));
+        }
+        return amounts;
+    }
+
+    public List<Object[]> topDiagnoses(OffsetDateTime start, OffsetDateTime end) {
+        return rangeQuery("""
+                SELECT ic.code, ic.description, COUNT(*) AS occurrences, COUNT(DISTINCT a.patient_id) AS patients
+                  FROM encounter_diagnoses ed
+                  JOIN encounters e    ON e.encounter_id = ed.encounter_id
+                  JOIN appointments a  ON a.appointment_id = e.appointment_id
+                  JOIN icd10_codes ic  ON ic.icd10_id = ed.icd10_id
+                 WHERE ed.voided_at IS NULL AND e.voided_at IS NULL
+                   AND e.start_at >= :start AND e.start_at < :end
+                 GROUP BY ic.code, ic.description
+                 ORDER BY COUNT(*) DESC, ic.code ASC
+                 LIMIT 3
+                """, start, end).getResultList();
+    }
+
     private Query rangeQuery(String sql, OffsetDateTime start, OffsetDateTime end) {
         Query query = entityManager.createNativeQuery(sql);
         query.setParameter("start", start);
@@ -149,6 +223,25 @@ public class DashboardRepository {
             counts.put((String) row[0], longValue(row[1]));
         }
         return counts;
+    }
+
+    private Map<LocalDate, Long> countsByDate(Query query) {
+        Map<LocalDate, Long> counts = new LinkedHashMap<>();
+        List<Object[]> rows = query.getResultList();
+        for (Object[] row : rows) {
+            counts.put(toLocalDate(row[0]), longValue(row[1]));
+        }
+        return counts;
+    }
+
+    private static LocalDate toLocalDate(Object value) {
+        if (value instanceof Date d) {
+            return d.toLocalDate();
+        }
+        if (value instanceof LocalDate ld) {
+            return ld;
+        }
+        return LocalDate.parse(value.toString());
     }
 
     private static long longValue(Object value) {

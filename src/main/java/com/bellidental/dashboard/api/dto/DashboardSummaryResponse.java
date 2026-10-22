@@ -11,5 +11,7 @@ public record DashboardSummaryResponse(
         BillingStats billing,
         List<TopTreatmentResponse> topTreatments,
         List<ProfessionalStats> byProfessional,
-        List<ChannelStat> byChannel
+        List<ChannelStat> byChannel,
+        List<TopDiagnosisResponse> topDiagnoses,
+        List<DailyStat> byDay
 ) {}

@@ -3,9 +3,11 @@ package com.bellidental.dashboard.application;
 import com.bellidental.dashboard.api.dto.AppointmentStats;
 import com.bellidental.dashboard.api.dto.BillingStats;
 import com.bellidental.dashboard.api.dto.ChannelStat;
+import com.bellidental.dashboard.api.dto.DailyStat;
 import com.bellidental.dashboard.api.dto.DashboardSummaryResponse;
 import com.bellidental.dashboard.api.dto.PatientStats;
 import com.bellidental.dashboard.api.dto.ProfessionalStats;
+import com.bellidental.dashboard.api.dto.TopDiagnosisResponse;
 import com.bellidental.dashboard.api.dto.TopTreatmentResponse;
 import com.bellidental.dashboard.domain.NoShowRate;
 import com.bellidental.persistence.repository.DashboardRepository;
@@ -23,6 +25,7 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -50,6 +53,28 @@ public class DashboardService {
         OffsetDateTime end = to.plusDays(1).atStartOfDay(clinicClock.zone()).toOffsetDateTime();
         OffsetDateTime now = clinicClock.now();
 
+        String zone = clinicClock.zone().getId();
+        Map<LocalDate, Long> appointmentsByDay = dashboardRepository.appointmentsByDay(start, end, zone);
+        Map<LocalDate, Long> completedEncountersByDay = dashboardRepository.completedEncountersByDay(start, end, zone);
+        Map<LocalDate, Long> newPatientsByDay = dashboardRepository.newPatientsByDay(start, end, zone);
+        Map<LocalDate, BigDecimal> collectedByDay = dashboardRepository.collectedByDay(start, end, zone);
+
+        List<DailyStat> byDay = new ArrayList<>();
+        BigDecimal zeroMoney = BigDecimal.ZERO.setScale(MONEY_SCALE, RoundingMode.HALF_UP);
+        for (LocalDate date = from; !date.isAfter(to); date = date.plusDays(1)) {
+            byDay.add(new DailyStat(
+                    date,
+                    appointmentsByDay.getOrDefault(date, 0L),
+                    completedEncountersByDay.getOrDefault(date, 0L),
+                    newPatientsByDay.getOrDefault(date, 0L),
+                    collectedByDay.getOrDefault(date, zeroMoney)
+            ));
+        }
+
+        List<TopDiagnosisResponse> topDiagnoses = dashboardRepository.topDiagnoses(start, end).stream()
+                .map(this::toTopDiagnosis)
+                .toList();
+
         return new DashboardSummaryResponse(
                 from,
                 to,
@@ -63,7 +88,9 @@ public class DashboardService {
                 dashboardRepository.encountersAndRevenueByProfessional(start, end).stream()
                         .map(this::toProfessionalStats)
                         .toList(),
-                channelStats(start, end)
+                channelStats(start, end),
+                topDiagnoses,
+                byDay
         );
     }
 
@@ -114,6 +141,15 @@ public class DashboardService {
                 (String) row[1],
                 ((Number) row[2]).longValue(),
                 money(row[3])
+        );
+    }
+
+    private TopDiagnosisResponse toTopDiagnosis(Object[] row) {
+        return new TopDiagnosisResponse(
+                (String) row[0],
+                (String) row[1],
+                ((Number) row[2]).longValue(),
+                ((Number) row[3]).longValue()
         );
     }
 
