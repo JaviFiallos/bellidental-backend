@@ -58,7 +58,8 @@ class UserManagementIT {
         ResponseEntity<ApiResponse<Void>> wrongCurrent = exchange(HttpMethod.PUT, "/api/v1/auth/password",
                 new ChangePasswordRequest("Incorrecta.2026!", "Otra.2026!Segura"), userHeaders,
                 new ParameterizedTypeReference<>() {});
-        assertThat(wrongCurrent.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(wrongCurrent.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(wrongCurrent.getBody().getMessage()).contains("La contraseña actual no es correcta.");
     }
 
     @Test

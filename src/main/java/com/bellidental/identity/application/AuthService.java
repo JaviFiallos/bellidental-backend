@@ -72,7 +72,7 @@ public class AuthService {
         User user = userRepository.findByIdAndDeletedAtIsNull(currentUser.userId())
                 .orElseThrow(() -> new BusinessException("Usuario no encontrado."));
         if (!passwordEncoder.matches(request.currentPassword(), user.getPasswordHash())) {
-            throw new BadCredentialsException("La contraseña actual no es correcta.");
+            throw new InvalidInputException("La contraseña actual no es correcta.");
         }
         PasswordRules.validate(request.newPassword());
         if (passwordEncoder.matches(request.newPassword(), user.getPasswordHash())) {
