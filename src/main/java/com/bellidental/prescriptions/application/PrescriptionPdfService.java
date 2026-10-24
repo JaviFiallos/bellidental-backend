@@ -71,6 +71,10 @@ public class PrescriptionPdfService {
         return render(prescription, patient, professional);
     }
 
+    public void requirePrintable(UUID prescriptionId) {
+        requireIssued(prescriptionService.findById(prescriptionId));
+    }
+
     private void requireIssued(PrescriptionResponse prescription) {
         if (prescription.status() != PrescriptionStatus.ISSUED || prescription.voided()) {
             throw new BusinessException("Solo se puede imprimir una receta emitida.");

@@ -115,6 +115,7 @@ tests de reglas puras). La columna `*IT` y los tests listados en §4 son orienta
 | 023 | Cambiar contraseña: actual incorrecta → 400 (G-13 del frontend) | — | 019 | `UserManagementIT` (aserción) |
 | 024 | Estadísticas: serie por día, top 3 tratamientos y top 3 diagnósticos | — | 020 | `DashboardSummaryIT` (aserciones) |
 | 025 | Auditoría: lista paginada `GET /audit` y historial completo de la atención (G-7 del frontend) | — | 013, 021 | `AuditLogIT` |
+| 026 | Enlace temporal firmado para los PDF de receta y comprobante (G-14 del frontend, D-28) | — | 011b, 012 | `PrescriptionPdfIT` + `PaymentFlowIT` (casos nuevos) |
 
 (007 y 008 van separadas: CIE-10 en `V7__icd10_catalog.sql` y atención en `V7_1__encounters.sql`, para no renumerar 009+.)
 (El historial inmediato `GET /patients/{id}/clinical-summary` de §4.4 sale de la 008: es la tarea 011c.)
@@ -357,6 +358,7 @@ Reglas:
 - `GET /prescriptions/{id}/pdf` (solo ISSUED): clínica, "CONFIDENCIAL", paciente (nombre, cédula,
   edad), fecha, CIE-10 + descripción, ítems, indicaciones generales, profesional + registro, línea
   de firma y sello.
+- Enlace temporal firmado (tarea 026, G-14): `POST /prescriptions/{id}/pdf-link` (`RECORD_READ`) genera enlace de 5 min; `GET /prescriptions/{id}/receta.pdf?t=` público sin Bearer; el token no autentica como Bearer ni el de sesión sirve como `t`.
 Unit: copia de preset, transición DRAFT→ISSUED, inmutabilidad, diagnóstico de otra atención → error.
 PDF: un test que genera bytes no vacíos y contiene "CONFIDENCIAL".
 
@@ -373,6 +375,7 @@ Reglas:
 - `GET /patients/{id}/payments` (BILLING_READ): lista de pagos del paciente (vigentes y anulados), más reciente primero, con quién lo recibió (username) y motivo de anulación si aplica.
 - `GET /payments/{id}/receipt` PDF: "Comprobante interno — no válido como factura", "CONFIDENCIAL",
   paciente, detalle, abono, saldo, línea de firma del paciente.
+- Enlace temporal firmado (tarea 026, G-14): `POST /payments/{id}/receipt-link` (`BILLING_READ`) genera enlace de 5 min; `GET /payments/{id}/comprobante.pdf?t=` público sin Bearer; el token no autentica como Bearer ni el de sesión sirve como `t`.
 - Anular pago (D-8, D-8d): ADMIN, SECRETARIA y ODONTOLOGO, con `void_reason` obligatorio; queda en
   Envers. Usa el permiso BILLING_CREATE.
 Unit: cálculo de saldo (anulados excluidos, pago sin atención, saldo a favor), secuencia.
@@ -637,6 +640,7 @@ quitar RECORD_* de ADMIN en la semilla (hoy ADMIN = todos).
 | D-26 | El dashboard con cifras de dinero es solo para ADMIN (el director). El odontólogo tendrá otra vista sin dinero (D-26b, pendiente) | tarea 020 |
 | D-27 | Catálogo de tratamientos y especialidades administrable por el ADMIN (CRUD por API, activar/desactivar, sin `DELETE`); columna opcional `treatment_catalog.specialty_id` solo para filtrar (no restringe al odontólogo); `code` inmutable; auditado con Envers | tarea 021 |
 | D-8d | El odontólogo también cobra y anula pagos con motivo (permisos BILLING_CREATE y BILLING_READ). Reemplaza la parte de D-8b «cobran SECRETARIA y ADMIN» | §4.8, tarea 022 |
+| D-28 | PDF de receta y comprobante por enlace temporal firmado (JWT de 5 min con `purpose=document`, mismo origen, GET público solo con token válido); nunca un enlace sin token (dato de salud). Los GET con Bearer se conservan | tarea 026 |
 
 **Pendientes:**
 | ID | Decisión | Propuesta | Afecta |

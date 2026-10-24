@@ -192,6 +192,29 @@ class PaymentFlowIT {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     }
 
+    @Test
+    void downloadReceiptPublic_returnsPdfWithoutBearer() {
+        UUID encounterId = completedEncounterWithCharge(LocalDate.now().plusDays(105));
+        PaymentResponse payment = registerPayment(encounterId, new BigDecimal("15.00"));
+
+        ResponseEntity<ApiResponse<com.bellidental.security.DocumentLinkResponse>> linkResponse = exchange(
+                HttpMethod.POST, "/api/v1/payments/" + payment.id() + "/receipt-link", null, secretariaHeaders,
+                new ParameterizedTypeReference<>() {});
+        assertThat(linkResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+        String url = linkResponse.getBody().getData().url();
+        assertThat(url).startsWith("/api/v1/payments/" + payment.id() + "/comprobante.pdf?t=");
+
+        ResponseEntity<byte[]> publicPdfResponse = restTemplate.exchange(
+                url, HttpMethod.GET, new HttpEntity<>(new HttpHeaders()), byte[].class);
+
+        assertThat(publicPdfResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(publicPdfResponse.getHeaders().getContentType()).isEqualTo(MediaType.APPLICATION_PDF);
+        assertThat(publicPdfResponse.getHeaders().getCacheControl()).isEqualTo("no-store");
+        assertThat(publicPdfResponse.getHeaders().getFirst("Referrer-Policy")).isEqualTo("no-referrer");
+        assertThat(publicPdfResponse.getHeaders().getFirst("X-Content-Type-Options")).isEqualTo("nosniff");
+        assertThat(new String(publicPdfResponse.getBody(), 0, 4, StandardCharsets.US_ASCII)).isEqualTo("%PDF");
+    }
+
     /** Atención completada con un tratamiento de 40.00 (cargo) en un día propio del test. */
     private UUID completedEncounterWithCharge(LocalDate day) {
         UUID appointmentId = createCheckedInAppointment(day);

@@ -43,6 +43,8 @@ application:
     jwt:
       secret: ${JWT_SECRET:3d8f7a2e1b5c4d9f0e6a3b8c2d7f1e4a5b9c0d3e6f2a7b8c1d4e5f9a0b3c6d9}
       expiration: ${JWT_EXPIRATION:86400000}  # 24 horas en ms
+    document-link:
+      ttl-seconds: ${DOCUMENT_LINK_TTL_SECONDS:300}
   bot:
     api-key: ${BOT_API_KEY:}
     privacy-notice-version: "v1"
