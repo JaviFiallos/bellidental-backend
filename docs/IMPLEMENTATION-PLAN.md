@@ -116,6 +116,7 @@ tests de reglas puras). La columna `*IT` y los tests listados en §4 son orienta
 | 024 | Estadísticas: serie por día, top 3 tratamientos y top 3 diagnósticos | — | 020 | `DashboardSummaryIT` (aserciones) |
 | 025 | Auditoría: lista paginada `GET /audit` y historial completo de la atención (G-7 del frontend) | — | 013, 021 | `AuditLogIT` |
 | 026 | Enlace temporal firmado para los PDF de receta y comprobante (G-14 del frontend, D-28) | — | 011b, 012 | `PrescriptionPdfIT` + `PaymentFlowIT` (casos nuevos) |
+| 027 | Walk-in con hora y duración elegidas en bloques de 15 min (G-15 del frontend, D-29) | — | 006f | IT de walk-in (casos nuevos) |
 
 (007 y 008 van separadas: CIE-10 en `V7__icd10_catalog.sql` y atención en `V7_1__encounters.sql`, para no renumerar 009+.)
 (El historial inmediato `GET /patients/{id}/clinical-summary` de §4.4 sale de la 008: es la tarea 011c.)
@@ -208,8 +209,7 @@ PENDING ──confirmar──▶ CONFIRMED
   solo en Java: la BD es la garantía.
 - La cita debe caer dentro del horario efectivo del profesional, salvo `WALK_IN` y
   `source=PROFESSIONAL` (el doctor puede abrir fuera de horario).
-- Walk-in: `POST /appointments/walk-in` crea cita `WALK_IN` en el primer hueco libre desde ahora con
-  `checked_in_at=now`; si no hay hueco → 409 y recepción elige otro profesional/hora (O4).
+- Walk-in: `POST /appointments/walk-in` crea cita `WALK_IN` con `checked_in_at=now`. Acepta opcionalmente `startAt` y `endAt` (tarea 027, G-15, D-29): deben ser de hoy, `startAt` ≥ inicio del bloque actual de 15 min, duración 15–240 min en múltiplos de 15; si se omiten las horas, busca el primer hueco libre desde ahora con la duración de la especialidad; si no hay hueco o hay cruce → 409 (O4).
 - Reprogramar (`POST /appointments/{id}/reschedule` con nueva hora): en una transacción, original →
   `RESCHEDULED`, nueva cita con `rescheduled_from_id`, mismo paciente/profesional/especialidad salvo
   que se indique otro. Solo desde PENDING/CONFIRMED. Lo usan recepción y el bot.
@@ -641,6 +641,7 @@ quitar RECORD_* de ADMIN en la semilla (hoy ADMIN = todos).
 | D-27 | Catálogo de tratamientos y especialidades administrable por el ADMIN (CRUD por API, activar/desactivar, sin `DELETE`); columna opcional `treatment_catalog.specialty_id` solo para filtrar (no restringe al odontólogo); `code` inmutable; auditado con Envers | tarea 021 |
 | D-8d | El odontólogo también cobra y anula pagos con motivo (permisos BILLING_CREATE y BILLING_READ). Reemplaza la parte de D-8b «cobran SECRETARIA y ADMIN» | §4.8, tarea 022 |
 | D-28 | PDF de receta y comprobante por enlace temporal firmado (JWT de 5 min con `purpose=document`, mismo origen, GET público solo con token válido); nunca un enlace sin token (dato de salud). Los GET con Bearer se conservan | tarea 026 |
+| D-29 | Walk-in con `startAt`/`endAt` opcionales: hoy, desde el bloque de 15 min actual, duración 15–240 en múltiplos de 15; sin horas, el primer hueco como antes; sigue exento del horario | tarea 027 |
 
 **Pendientes:**
 | ID | Decisión | Propuesta | Afecta |

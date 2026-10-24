@@ -43,6 +43,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.OffsetDateTime;
+import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Collections;
 import java.util.HashMap;
@@ -121,25 +122,27 @@ public class AppointmentService {
         return persistAndRespond(appointment, patient, specialty, eventType, original != null ? original.getId() : null);
     }
 
-    /** Atención sin cita: primer hueco desde ahora hasta el fin del día local, sin horario del profesional. */
+    /** Atención sin cita: con horas elegidas o primer hueco desde ahora hasta el fin del día local, sin horario del profesional. */
     @Transactional
     public AppointmentResponse walkIn(WalkInRequest request) {
+        if ((request.startAt() == null) != (request.endAt() == null)) {
+            throw new InvalidInputException("Indica la hora de inicio y de fin, o ninguna.");
+        }
+
         PatientSummary patient = loadActivePatient(request.patientId());
         SpecialtySummary specialty = loadBookableSpecialty(request.professionalId(), request.specialtyId());
 
         OffsetDateTime now = clock.now();
-        OffsetDateTime endOfDay = clock.today().atTime(23, 59).atZone(clock.zone()).toOffsetDateTime();
-        List<TimeRange> busy = availabilityService.findBusyRanges(request.professionalId(), now, endOfDay);
-
-        OffsetDateTime startAt = WalkInSlotFinder.findFirst(now, specialty.defaultDurationMinutes(), busy, endOfDay)
-                .orElseThrow(() -> new BusinessException("Sin hueco hoy para este profesional."));
+        TimeRange range = request.startAt() != null
+                ? chosenWalkInRange(request.startAt(), request.endAt(), now)
+                : firstFreeWalkInRange(request.professionalId(), specialty.defaultDurationMinutes(), now);
 
         Appointment appointment = Appointment.builder()
                 .patientId(request.patientId())
                 .professionalId(request.professionalId())
                 .specialtyId(request.specialtyId())
-                .startAt(startAt)
-                .endAt(startAt.plusMinutes(specialty.defaultDurationMinutes()))
+                .startAt(range.startAt())
+                .endAt(range.endAt())
                 .source(AppointmentSource.WALK_IN)
                 .status(AppointmentStatus.PENDING)
                 .checkedInAt(now)
@@ -147,6 +150,31 @@ public class AppointmentService {
                 .build();
 
         return persistAndRespond(appointment, patient, specialty, AppointmentEventType.CREATED, null);
+    }
+
+    private TimeRange chosenWalkInRange(OffsetDateTime startAt, OffsetDateTime endAt, OffsetDateTime now) {
+        if (!startAt.atZoneSameInstant(clock.zone()).toLocalDate().equals(clock.today())) {
+            throw new InvalidInputException("La atención sin cita es solo para hoy.");
+        }
+        if (startAt.isBefore(currentBlockStart(now))) {
+            throw new InvalidInputException("La hora ya pasó.");
+        }
+        AppointmentDuration.validate(startAt, endAt);
+        return new TimeRange(startAt, endAt);
+    }
+
+    private TimeRange firstFreeWalkInRange(UUID professionalId, int durationMinutes, OffsetDateTime now) {
+        OffsetDateTime endOfDay = clock.today().atTime(23, 59).atZone(clock.zone()).toOffsetDateTime();
+        List<TimeRange> busy = availabilityService.findBusyRanges(professionalId, now, endOfDay);
+        OffsetDateTime startAt = WalkInSlotFinder.findFirst(now, durationMinutes, busy, endOfDay)
+                .orElseThrow(() -> new BusinessException("Sin hueco hoy para este profesional."));
+        return new TimeRange(startAt, startAt.plusMinutes(durationMinutes));
+    }
+
+    /** Inicio del bloque de 15 min en curso: a las 10:07 devuelve 10:00. */
+    private OffsetDateTime currentBlockStart(OffsetDateTime now) {
+        ZonedDateTime local = now.atZoneSameInstant(clock.zone()).truncatedTo(ChronoUnit.MINUTES);
+        return local.withMinute(local.getMinute() / 15 * 15).toOffsetDateTime();
     }
 
     private PatientSummary loadActivePatient(UUID patientId) {

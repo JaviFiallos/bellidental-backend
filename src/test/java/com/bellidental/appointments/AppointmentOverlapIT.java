@@ -4,6 +4,7 @@ import com.bellidental.appointments.api.dto.AppointmentResponse;
 import com.bellidental.appointments.api.dto.CreateAppointmentRequest;
 import com.bellidental.appointments.api.dto.RescheduleAppointmentRequest;
 import com.bellidental.appointments.api.dto.ScheduleRequest;
+import com.bellidental.appointments.api.dto.WalkInRequest;
 import com.bellidental.identity.api.dto.AuthResponse;
 import com.bellidental.identity.api.dto.LoginRequest;
 import com.bellidental.patients.CreatePatientRequest;
@@ -13,9 +14,11 @@ import com.bellidental.persistence.entity.ProfessionalSpecialty;
 import com.bellidental.persistence.repository.ProfessionalRepository;
 import com.bellidental.persistence.repository.ProfessionalSpecialtyRepository;
 import com.bellidental.persistence.repository.UserRepository;
+import com.bellidental.shared.enums.AppointmentSource;
 import com.bellidental.shared.enums.AppointmentStatus;
 import com.bellidental.shared.enums.DocumentType;
 import com.bellidental.shared.response.ApiResponse;
+import com.bellidental.support.MutableClock;
 import com.bellidental.support.TestcontainersConfiguration;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -54,6 +57,9 @@ class AppointmentOverlapIT {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private MutableClock clock;
+
     private HttpHeaders headers;
     private UUID patientId;
     private UUID professionalId;
@@ -63,6 +69,7 @@ class AppointmentOverlapIT {
 
     @BeforeEach
     void setUp() {
+        clock.reset();
         // 1. Login as secretaria
         LoginRequest login = new LoginRequest("secretaria@bellidental.local", "Cambiar.2026!");
         ResponseEntity<ApiResponse<AuthResponse>> loginResponse = restTemplate.exchange(
@@ -194,5 +201,91 @@ class AppointmentOverlapIT {
         );
         assertThat(getC.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(getC.getBody().getData().status()).isEqualTo(AppointmentStatus.RESCHEDULED);
+    }
+
+    @Test
+    void walkIn_withChosenHours_createsWalkInAndChecksIn() {
+        LocalDate today = LocalDate.now(clinicZone);
+        OffsetDateTime fixedNow = today.atTime(10, 7).atZone(clinicZone).toOffsetDateTime();
+        clock.fix(fixedNow.toInstant());
+
+        OffsetDateTime startAt = today.atTime(11, 0).atZone(clinicZone).toOffsetDateTime();
+        OffsetDateTime endAt = today.atTime(11, 30).atZone(clinicZone).toOffsetDateTime();
+        WalkInRequest req = new WalkInRequest(patientId, professionalId, specialtyId, startAt, endAt);
+
+        ResponseEntity<ApiResponse<AppointmentResponse>> response = restTemplate.exchange(
+                "/api/v1/appointments/walk-in",
+                HttpMethod.POST,
+                new HttpEntity<>(req, headers),
+                new ParameterizedTypeReference<>() {}
+        );
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        AppointmentResponse data = response.getBody().getData();
+        assertThat(data.startAt()).isEqualTo(startAt);
+        assertThat(data.endAt()).isEqualTo(endAt);
+        assertThat(data.source()).isEqualTo(AppointmentSource.WALK_IN);
+        assertThat(data.checkedInAt()).isNotNull();
+    }
+
+    @Test
+    void walkIn_overlappingExistingAppointment_returnsConflict() {
+        LocalDate today = LocalDate.now(clinicZone);
+        OffsetDateTime fixedNow = today.atTime(10, 0).atZone(clinicZone).toOffsetDateTime();
+        clock.fix(fixedNow.toInstant());
+
+        OffsetDateTime startAt = today.atTime(12, 0).atZone(clinicZone).toOffsetDateTime();
+        OffsetDateTime endAt = today.atTime(12, 30).atZone(clinicZone).toOffsetDateTime();
+
+        WalkInRequest req1 = new WalkInRequest(patientId, professionalId, specialtyId, startAt, endAt);
+        ResponseEntity<ApiResponse<AppointmentResponse>> res1 = restTemplate.exchange(
+                "/api/v1/appointments/walk-in",
+                HttpMethod.POST,
+                new HttpEntity<>(req1, headers),
+                new ParameterizedTypeReference<>() {}
+        );
+        assertThat(res1.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+
+        WalkInRequest req2 = new WalkInRequest(patientId, professionalId, specialtyId, startAt, endAt);
+        ResponseEntity<ApiResponse<Object>> res2 = restTemplate.exchange(
+                "/api/v1/appointments/walk-in",
+                HttpMethod.POST,
+                new HttpEntity<>(req2, headers),
+                new ParameterizedTypeReference<>() {}
+        );
+        assertThat(res2.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+    }
+
+    @Test
+    void walkIn_pastHoursOrYesterday_returnsBadRequest() {
+        LocalDate today = LocalDate.now(clinicZone);
+        OffsetDateTime fixedNow = today.atTime(10, 7).atZone(clinicZone).toOffsetDateTime();
+        clock.fix(fixedNow.toInstant());
+
+        // Ayer
+        OffsetDateTime yesterdayStart = today.minusDays(1).atTime(10, 0).atZone(clinicZone).toOffsetDateTime();
+        OffsetDateTime yesterdayEnd = today.minusDays(1).atTime(10, 30).atZone(clinicZone).toOffsetDateTime();
+        WalkInRequest reqYesterday = new WalkInRequest(patientId, professionalId, specialtyId, yesterdayStart, yesterdayEnd);
+        ResponseEntity<ApiResponse<Void>> resYesterday = restTemplate.exchange(
+                "/api/v1/appointments/walk-in",
+                HttpMethod.POST,
+                new HttpEntity<>(reqYesterday, headers),
+                new ParameterizedTypeReference<>() {}
+        );
+        assertThat(resYesterday.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(resYesterday.getBody().getMessage()).isEqualTo("La atención sin cita es solo para hoy.");
+
+        // Hace 1 hora (09:00, antes del bloque actual de 10:00)
+        OffsetDateTime oneHourAgoStart = today.atTime(9, 0).atZone(clinicZone).toOffsetDateTime();
+        OffsetDateTime oneHourAgoEnd = today.atTime(9, 30).atZone(clinicZone).toOffsetDateTime();
+        WalkInRequest reqPast = new WalkInRequest(patientId, professionalId, specialtyId, oneHourAgoStart, oneHourAgoEnd);
+        ResponseEntity<ApiResponse<Void>> resPast = restTemplate.exchange(
+                "/api/v1/appointments/walk-in",
+                HttpMethod.POST,
+                new HttpEntity<>(reqPast, headers),
+                new ParameterizedTypeReference<>() {}
+        );
+        assertThat(resPast.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(resPast.getBody().getMessage()).isEqualTo("La hora ya pasó.");
     }
 }
