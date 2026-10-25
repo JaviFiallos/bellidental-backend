@@ -12,6 +12,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
@@ -26,6 +27,22 @@ import java.util.UUID;
 public class PatientController {
 
     private final PatientService patientService;
+    private final PatientListService patientListService;
+
+    @GetMapping("/list")
+    @PreAuthorize("hasAuthority('PATIENT_READ')")
+    @Operation(summary = "Lista informativa y paginada de pacientes (últimos atendidos o registrados)")
+    public ResponseEntity<ApiResponse<Page<PatientListItem>>> list(
+            @RequestParam(required = false) String view,
+            @RequestParam(required = false) LocalDate from,
+            @RequestParam(required = false) LocalDate to,
+            @RequestParam(required = false, defaultValue = "false") boolean withBalance,
+            @RequestParam(required = false) String query,
+            @RequestParam(required = false, defaultValue = "0") int page,
+            @RequestParam(required = false, defaultValue = "20") int size
+    ) {
+        return ResponseEntity.ok(ApiResponse.ok(patientListService.listPatients(view, from, to, withBalance, query, page, size)));
+    }
 
     @GetMapping
     @PreAuthorize("hasAuthority('PATIENT_READ')")

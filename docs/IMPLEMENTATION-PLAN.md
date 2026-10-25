@@ -119,6 +119,7 @@ tests de reglas puras). La columna `*IT` y los tests listados en §4 son orienta
 | 027 | Walk-in con hora y duración elegidas en bloques de 15 min (G-15 del frontend, D-29) | — | 006f | IT de walk-in (casos nuevos) |
 | — | Semilla ampliada de medicamentos de uso odontológico (34 activos, 40 presets; lidocaína desactivada) | V19 | 011a | — |
 | 028 | Catálogo de medicamentos y posologías administrable por el odontólogo (D-30) | V20 | 011a, V19 | `MedicationCatalogIT` |
+| 029 | Lista de pacientes: últimos atendidos / registrados con saldo, paginada (G-16 del frontend, D-31) | V21 (índices) | 012, 013 | `PatientListIT` |
 
 (007 y 008 van separadas: CIE-10 en `V7__icd10_catalog.sql` y atención en `V7_1__encounters.sql`, para no renumerar 009+.)
 (El historial inmediato `GET /patients/{id}/clinical-summary` de §4.4 sale de la 008: es la tarea 011c.)
@@ -140,6 +141,7 @@ Los módulos ya existen; se ajustan y se exponen solo estas operaciones.
 - `PUT /patients/{id}` (PATIENT_UPDATE). `admin_notes` editable por recepción (máx 1000 caracteres, trim; vacío borra la nota).
 - `GET /patients?query=` (PATIENT_READ): por cédula exacta, prefijo de teléfono o nombre (ILIKE ahora;
   trigram cuando exista el índice de V7).
+- `GET /patients/list?view=...` (PATIENT_READ; saldo con BILLING_READ) — tarea 029 (D-31).
 - `GET /patients/{id}`: identificación + edad calculada + `adminNotes`. Nunca datos clínicos.
 - Interfaz pública `PatientDirectory` (buscar por id, por teléfono, por documento) para agenda, bot y cobros.
 - Desactivar = `active=false`; no hay borrado.
@@ -650,6 +652,7 @@ quitar RECORD_* de ADMIN en la semilla (hoy ADMIN = todos).
 | D-28 | PDF de receta y comprobante por enlace temporal firmado (JWT de 5 min con `purpose=document`, mismo origen, GET público solo con token válido); nunca un enlace sin token (dato de salud). Los GET con Bearer se conservan | tarea 026 |
 | D-29 | Walk-in con `startAt`/`endAt` opcionales: hoy, desde el bloque de 15 min actual, duración 15–240 en múltiplos de 15; sin horas, el primer hueco como antes; sigue exento del horario | tarea 027 |
 | D-30 | Medicamentos y presets administrables por el odontólogo (y ADMIN) con RECORD_CREATE; catálogo compartido, sin `professional_id` (el autor queda en Envers); sin `DELETE` (`active`); un medicamento ya usado en recetas no se edita; posología en texto libre | tarea 028 |
+| D-31 | `GET /patients/list` de solo lectura con `PATIENT_READ`; el saldo (`pendingBalance`) solo con `BILLING_READ` (si no, `null`; `withBalance=true` → 403); saldo calculado en SQL igual que `AccountService`; rango máx. 366 días | tarea 029 |
 
 **Pendientes:**
 | ID | Decisión | Propuesta | Afecta |
