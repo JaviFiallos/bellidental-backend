@@ -10,6 +10,8 @@ import com.bellidental.persistence.entity.DentalFinding;
 import com.bellidental.persistence.entity.Encounter;
 import com.bellidental.persistence.entity.EncounterDiagnosis;
 import com.bellidental.persistence.entity.MedicalHistoryEntry;
+import com.bellidental.persistence.entity.Medication;
+import com.bellidental.persistence.entity.MedicationPreset;
 import com.bellidental.persistence.entity.Patient;
 import com.bellidental.persistence.entity.Payment;
 import com.bellidental.persistence.entity.PerformedTreatment;
@@ -62,7 +64,9 @@ public class AuditService {
             Map.entry("appointments", Appointment.class),
             Map.entry("patients", Patient.class),
             Map.entry("treatments", Treatment.class),
-            Map.entry("specialties", Specialty.class)
+            Map.entry("specialties", Specialty.class),
+            Map.entry("medications", Medication.class),
+            Map.entry("medication-presets", MedicationPreset.class)
     );
 
     private final EntityManager entityManager;

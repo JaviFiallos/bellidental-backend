@@ -6,5 +6,6 @@ public record MedicationPresetResponse(
         String dose,
         String frequency,
         String duration,
-        String instructions
+        String instructions,
+        boolean active
 ) {}

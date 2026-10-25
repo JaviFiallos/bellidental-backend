@@ -11,4 +11,10 @@ import java.util.List;
 public interface MedicationPresetRepository extends JpaRepository<MedicationPreset, Long> {
 
     List<MedicationPreset> findByMedicationIdInOrderByIdAsc(Collection<Long> medicationIds);
+
+    List<MedicationPreset> findByMedicationIdInAndActiveTrueOrderByIdAsc(Collection<Long> medicationIds);
+
+    boolean existsByMedicationIdAndLabelIgnoreCase(Long medicationId, String label);
+
+    boolean existsByMedicationIdAndLabelIgnoreCaseAndIdNot(Long medicationId, String label, Long id);
 }

@@ -27,7 +27,7 @@ public class MedicationService {
         List<Medication> medications = medicationRepository.searchActive(requireQuery(query));
         List<Long> medicationIds = medications.stream().map(Medication::getId).toList();
         Map<Long, List<MedicationPreset>> presetsByMedication = medicationPresetRepository
-                .findByMedicationIdInOrderByIdAsc(medicationIds).stream()
+                .findByMedicationIdInAndActiveTrueOrderByIdAsc(medicationIds).stream()
                 .collect(Collectors.groupingBy(MedicationPreset::getMedicationId));
 
         return medications.stream()
@@ -42,25 +42,27 @@ public class MedicationService {
         return query.trim();
     }
 
-    private MedicationResponse toResponse(Medication medication, List<MedicationPreset> presets) {
+    MedicationResponse toResponse(Medication medication, List<MedicationPreset> presets) {
         return new MedicationResponse(
                 medication.getId(),
                 medication.getName(),
                 medication.getPresentation(),
                 medication.getConcentration(),
                 medication.getRoute(),
-                presets.stream().map(this::toPresetResponse).toList()
+                presets.stream().map(this::toPresetResponse).toList(),
+                medication.isActive()
         );
     }
 
-    private MedicationPresetResponse toPresetResponse(MedicationPreset preset) {
+    MedicationPresetResponse toPresetResponse(MedicationPreset preset) {
         return new MedicationPresetResponse(
                 preset.getId(),
                 preset.getLabel(),
                 preset.getDose(),
                 preset.getFrequency(),
                 preset.getDuration(),
-                preset.getInstructions()
+                preset.getInstructions(),
+                preset.isActive()
         );
     }
 }
