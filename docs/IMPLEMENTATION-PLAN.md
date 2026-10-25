@@ -120,6 +120,7 @@ tests de reglas puras). La columna `*IT` y los tests listados en §4 son orienta
 | — | Semilla ampliada de medicamentos de uso odontológico (34 activos, 40 presets; lidocaína desactivada) | V19 | 011a | — |
 | 028 | Catálogo de medicamentos y posologías administrable por el odontólogo (D-30) | V20 | 011a, V19 | `MedicationCatalogIT` |
 | 029 | Lista de pacientes: últimos atendidos / registrados con saldo, paginada (G-16 del frontend, D-31) | V21 (índices) | 012, 013 | `PatientListIT` |
+| 030 | Catálogo de ortodoncia: Z46.4, especialidad Ortodoncia (15 min), D8080 y D8670 (G-17 del frontend, D-32) | V22 | 007, 010a, 021 | Icd10SearchIT + TreatmentFlowIT (casos nuevos) |
 
 (007 y 008 van separadas: CIE-10 en `V7__icd10_catalog.sql` y atención en `V7_1__encounters.sql`, para no renumerar 009+.)
 (El historial inmediato `GET /patients/{id}/clinical-summary` de §4.4 sale de la 008: es la tarea 011c.)
@@ -653,6 +654,7 @@ quitar RECORD_* de ADMIN en la semilla (hoy ADMIN = todos).
 | D-29 | Walk-in con `startAt`/`endAt` opcionales: hoy, desde el bloque de 15 min actual, duración 15–240 en múltiplos de 15; sin horas, el primer hueco como antes; sigue exento del horario | tarea 027 |
 | D-30 | Medicamentos y presets administrables por el odontólogo (y ADMIN) con RECORD_CREATE; catálogo compartido, sin `professional_id` (el autor queda en Envers); sin `DELETE` (`active`); un medicamento ya usado en recetas no se edita; posología en texto libre | tarea 028 |
 | D-31 | `GET /patients/list` de solo lectura con `PATIENT_READ`; el saldo (`pendingBalance`) solo con `BILLING_READ` (si no, `null`; `withBalance=true` → 403); saldo calculado en SQL igual que `AccountService`; rango máx. 366 días | tarea 029 |
+| D-32 | Ortodoncia con tratamiento completo (monto acordado D8080, $1200) y controles a $0 (D8670) con diagnóstico Z46.4; especialidad Ortodoncia (15 min); saldo refleja cuánto falta pagar con abonos libres | tarea 030 |
 
 **Pendientes:**
 | ID | Decisión | Propuesta | Afecta |

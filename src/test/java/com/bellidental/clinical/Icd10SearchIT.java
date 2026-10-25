@@ -91,4 +91,20 @@ class Icd10SearchIT {
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
     }
+
+    @Test
+    void search_codePrefixZ46AsOdontologa_returnsZ464() {
+        ResponseEntity<ApiResponse<List<Icd10Response>>> response =
+                search(loginAs("odontologa@bellidental.local"), "Z46");
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        List<Icd10Response> codes = response.getBody().getData();
+        assertThat(codes).extracting(Icd10Response::code).contains("Z46.4");
+        Icd10Response z464 = codes.stream()
+                .filter(c -> "Z46.4".equals(c.code()))
+                .findFirst()
+                .orElseThrow();
+        assertThat(z464.description()).isEqualTo("Prueba y ajuste de dispositivo ortodóntico");
+        assertThat(z464.category()).isEqualTo("Z46 Prueba y ajuste de otros dispositivos");
+    }
 }
