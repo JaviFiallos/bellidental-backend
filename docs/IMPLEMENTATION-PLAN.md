@@ -117,6 +117,8 @@ tests de reglas puras). La columna `*IT` y los tests listados en §4 son orienta
 | 025 | Auditoría: lista paginada `GET /audit` y historial completo de la atención (G-7 del frontend) | — | 013, 021 | `AuditLogIT` |
 | 026 | Enlace temporal firmado para los PDF de receta y comprobante (G-14 del frontend, D-28) | — | 011b, 012 | `PrescriptionPdfIT` + `PaymentFlowIT` (casos nuevos) |
 | 027 | Walk-in con hora y duración elegidas en bloques de 15 min (G-15 del frontend, D-29) | — | 006f | IT de walk-in (casos nuevos) |
+| — | Semilla ampliada de medicamentos de uso odontológico (34 activos, 40 presets; lidocaína desactivada) | V19 | 011a | — |
+| 028 | Catálogo de medicamentos y posologías administrable por el odontólogo (D-30) | V20 | 011a, V19 | `MedicationCatalogIT` |
 
 (007 y 008 van separadas: CIE-10 en `V7__icd10_catalog.sql` y atención en `V7_1__encounters.sql`, para no renumerar 009+.)
 (El historial inmediato `GET /patients/{id}/clinical-summary` de §4.4 sale de la 008: es la tarea 011c.)
@@ -359,6 +361,11 @@ Reglas:
   edad), fecha, CIE-10 + descripción, ítems, indicaciones generales, profesional + registro, línea
   de firma y sello.
 - Enlace temporal firmado (tarea 026, G-14): `POST /prescriptions/{id}/pdf-link` (`RECORD_READ`) genera enlace de 5 min; `GET /prescriptions/{id}/receta.pdf?t=` público sin Bearer; el token no autentica como Bearer ni el de sesión sirve como `t`.
+- Semilla ampliada V19: antibióticos, analgésicos/AINE, corticoide, antivirales, antifúngicos y tópicos bucales de
+  receta común (sin receta especial ni anestésicos de consultorio); pediátricos con dosis por kg.
+- Catálogo administrable (tarea 028, D-30): el odontólogo (RECORD_CREATE) crea, edita y desactiva medicamentos y
+  presets; compartido por toda la clínica, auditado con Envers. Medicamento usado en recetas no se edita (se desactiva
+  y se crea otro); la posología sigue siendo texto libre.
 Unit: copia de preset, transición DRAFT→ISSUED, inmutabilidad, diagnóstico de otra atención → error.
 PDF: un test que genera bytes no vacíos y contiene "CONFIDENCIAL".
 
@@ -642,6 +649,7 @@ quitar RECORD_* de ADMIN en la semilla (hoy ADMIN = todos).
 | D-8d | El odontólogo también cobra y anula pagos con motivo (permisos BILLING_CREATE y BILLING_READ). Reemplaza la parte de D-8b «cobran SECRETARIA y ADMIN» | §4.8, tarea 022 |
 | D-28 | PDF de receta y comprobante por enlace temporal firmado (JWT de 5 min con `purpose=document`, mismo origen, GET público solo con token válido); nunca un enlace sin token (dato de salud). Los GET con Bearer se conservan | tarea 026 |
 | D-29 | Walk-in con `startAt`/`endAt` opcionales: hoy, desde el bloque de 15 min actual, duración 15–240 en múltiplos de 15; sin horas, el primer hueco como antes; sigue exento del horario | tarea 027 |
+| D-30 | Medicamentos y presets administrables por el odontólogo (y ADMIN) con RECORD_CREATE; catálogo compartido, sin `professional_id` (el autor queda en Envers); sin `DELETE` (`active`); un medicamento ya usado en recetas no se edita; posología en texto libre | tarea 028 |
 
 **Pendientes:**
 | ID | Decisión | Propuesta | Afecta |
