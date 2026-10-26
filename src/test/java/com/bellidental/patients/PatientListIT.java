@@ -53,6 +53,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class PatientListIT {
 
     private static final AtomicInteger DAY_COUNTER = new AtomicInteger(500);
+    private static final AtomicInteger PATIENT_COUNTER = new AtomicInteger(1000);
 
     @Autowired
     private TestRestTemplate restTemplate;
@@ -361,10 +362,12 @@ class PatientListIT {
     }
 
     private UUID createPatient(String firstName, String lastName) {
-        String randomDigits = String.valueOf(System.nanoTime()).substring(6);
+        int seq = PATIENT_COUNTER.incrementAndGet();
+        String docNumber = "P" + String.format("%08d", seq);
+        String phone = "099" + String.format("%07d", seq);
         CreatePatientRequest req = new CreatePatientRequest(
-                DocumentType.PASAPORTE, "P" + randomDigits, firstName, lastName,
-                LocalDate.of(1992, 4, 15), "F", null, "099" + randomDigits.substring(0, 7),
+                DocumentType.PASAPORTE, docNumber, firstName, lastName,
+                LocalDate.of(1992, 4, 15), "F", null, phone,
                 null, null, null, null
         );
         ResponseEntity<ApiResponse<PatientResponse>> resp = exchange(
