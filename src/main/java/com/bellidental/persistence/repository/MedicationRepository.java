@@ -17,4 +17,10 @@ public interface MedicationRepository extends JpaRepository<Medication, Long> {
             "LIMIT 20",
             nativeQuery = true)
     List<Medication> searchActive(@Param("query") String query);
+
+    List<Medication> findAllByOrderByNameAscConcentrationAsc();
+
+    boolean existsByNameIgnoreCaseAndConcentrationIgnoreCaseAndPresentationIgnoreCase(String name, String concentration, String presentation);
+
+    boolean existsByNameIgnoreCaseAndConcentrationIgnoreCaseAndPresentationIgnoreCaseAndIdNot(String name, String concentration, String presentation, Long id);
 }

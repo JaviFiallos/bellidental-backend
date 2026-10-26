@@ -53,6 +53,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/v1/auth/login").permitAll()
                         .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/api-docs/**", "/v3/api-docs/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/actuator/health", "/actuator/health/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/prescriptions/*/receta.pdf").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/payments/*/comprobante.pdf").permitAll()
                         .requestMatchers("/api/v1/bot/**").hasAuthority("BOT")
                         .anyRequest().authenticated()
                 )

@@ -1,5 +1,6 @@
 package com.bellidental.persistence.entity;
 
+import org.hibernate.envers.Audited;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -14,6 +15,7 @@ import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
+@Audited
 @Entity
 @Table(name = "performed_treatments")
 @Getter

@@ -1,5 +1,6 @@
 package com.bellidental.persistence.entity;
 
+import org.hibernate.envers.Audited;
 import com.bellidental.shared.enums.AppointmentSource;
 import com.bellidental.shared.enums.AppointmentStatus;
 import jakarta.persistence.Column;
@@ -19,6 +20,7 @@ import lombok.Setter;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
+@Audited
 @Entity
 @Table(name = "appointments")
 @Getter

@@ -300,6 +300,7 @@ Table medication_presets {
   frequency varchar(100) [not null]
   duration varchar(100) [not null]
   instructions text
+  active boolean [not null, default: true]
 }
 Table prescriptions {
   prescription_id uuid [pk, default: `gen_random_uuid()`]

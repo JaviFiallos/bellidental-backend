@@ -70,7 +70,7 @@ services:
       LLM_API_KEY: ${LLM_API_KEY}
       LLM_MODEL: ${LLM_MODEL}
       CLINIC_ZONE: America/Guayaquil
-      REMINDERS_ENABLED: "true"
+      REMINDERS_ENABLED: ${REMINDERS_ENABLED:-false}
     depends_on:
       backend:
         condition: service_healthy

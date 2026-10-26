@@ -140,6 +140,91 @@ class PrescriptionPdfIT {
         assertThat(response.getBody().getMessage()).isEqualTo("Solo se puede imprimir una receta emitida.");
     }
 
+    @Test
+    void downloadPdfPublic_issuedPrescription_returnsPdfWithoutBearer() {
+        Long medicationId = searchMedications("amo").getFirst().id();
+        UUID diagnosisId = addDiagnosis(encounterId);
+        PrescriptionItemRequest item = new PrescriptionItemRequest(medicationId, null, "1 cápsula", "cada 8 horas", "7 días", "21 cápsulas", null);
+        PrescriptionResponse created = createPrescription(encounterId, new PrescriptionRequest(diagnosisId, "Tomar con agua", List.of(item)));
+
+        exchange(HttpMethod.POST, "/api/v1/prescriptions/" + created.id() + "/issue", null, odontologaHeaders,
+                new ParameterizedTypeReference<ApiResponse<PrescriptionResponse>>() {});
+
+        ResponseEntity<ApiResponse<com.bellidental.security.DocumentLinkResponse>> linkResponse = exchange(
+                HttpMethod.POST, "/api/v1/prescriptions/" + created.id() + "/pdf-link", null, odontologaHeaders,
+                new ParameterizedTypeReference<>() {});
+        assertThat(linkResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+        String url = linkResponse.getBody().getData().url();
+        assertThat(url).startsWith("/api/v1/prescriptions/" + created.id() + "/receta.pdf?t=");
+
+        ResponseEntity<byte[]> publicPdfResponse = restTemplate.exchange(
+                url, HttpMethod.GET, new HttpEntity<>(new HttpHeaders()), byte[].class);
+
+        assertThat(publicPdfResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(publicPdfResponse.getHeaders().getContentType()).isEqualTo(MediaType.APPLICATION_PDF);
+        assertThat(publicPdfResponse.getHeaders().getCacheControl()).isEqualTo("no-store");
+        assertThat(publicPdfResponse.getHeaders().getFirst("Referrer-Policy")).isEqualTo("no-referrer");
+        assertThat(publicPdfResponse.getHeaders().getFirst("X-Content-Type-Options")).isEqualTo("nosniff");
+        assertThat(new String(publicPdfResponse.getBody(), 0, 4, StandardCharsets.US_ASCII)).isEqualTo("%PDF");
+    }
+
+    @Test
+    void downloadPdfPublic_tokenFromAnotherPrescription_returnsForbidden() {
+        Long medicationId = searchMedications("amo").getFirst().id();
+        UUID diagnosisId = addDiagnosis(encounterId);
+        PrescriptionItemRequest item = new PrescriptionItemRequest(medicationId, null, "1 cápsula", "cada 8 horas", "7 días", "21 cápsulas", null);
+        PrescriptionResponse rx1 = createPrescription(encounterId, new PrescriptionRequest(diagnosisId, "Receta 1", List.of(item)));
+        PrescriptionResponse rx2 = createPrescription(encounterId, new PrescriptionRequest(diagnosisId, "Receta 2", List.of(item)));
+
+        exchange(HttpMethod.POST, "/api/v1/prescriptions/" + rx1.id() + "/issue", null, odontologaHeaders,
+                new ParameterizedTypeReference<ApiResponse<PrescriptionResponse>>() {});
+        exchange(HttpMethod.POST, "/api/v1/prescriptions/" + rx2.id() + "/issue", null, odontologaHeaders,
+                new ParameterizedTypeReference<ApiResponse<PrescriptionResponse>>() {});
+
+        ResponseEntity<ApiResponse<com.bellidental.security.DocumentLinkResponse>> linkResponse = exchange(
+                HttpMethod.POST, "/api/v1/prescriptions/" + rx1.id() + "/pdf-link", null, odontologaHeaders,
+                new ParameterizedTypeReference<>() {});
+        String token1 = linkResponse.getBody().getData().url().split("\\?t=")[1];
+
+        ResponseEntity<ApiResponse<Void>> forbiddenResponse = restTemplate.exchange(
+                "/api/v1/prescriptions/" + rx2.id() + "/receta.pdf?t=" + token1,
+                HttpMethod.GET,
+                new HttpEntity<>(new HttpHeaders()),
+                new ParameterizedTypeReference<>() {}
+        );
+
+        assertThat(forbiddenResponse.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(forbiddenResponse.getBody().getMessage()).isEqualTo("El enlace del documento venció o no es válido.");
+    }
+
+    @Test
+    void useDocumentTokenAsBearer_onProtectedEndpoint_returnsUnauthorized() {
+        Long medicationId = searchMedications("amo").getFirst().id();
+        UUID diagnosisId = addDiagnosis(encounterId);
+        PrescriptionItemRequest item = new PrescriptionItemRequest(medicationId, null, "1 cápsula", "cada 8 horas", "7 días", "21 cápsulas", null);
+        PrescriptionResponse created = createPrescription(encounterId, new PrescriptionRequest(diagnosisId, "Receta token", List.of(item)));
+
+        exchange(HttpMethod.POST, "/api/v1/prescriptions/" + created.id() + "/issue", null, odontologaHeaders,
+                new ParameterizedTypeReference<ApiResponse<PrescriptionResponse>>() {});
+
+        ResponseEntity<ApiResponse<com.bellidental.security.DocumentLinkResponse>> linkResponse = exchange(
+                HttpMethod.POST, "/api/v1/prescriptions/" + created.id() + "/pdf-link", null, odontologaHeaders,
+                new ParameterizedTypeReference<>() {});
+        String token = linkResponse.getBody().getData().url().split("\\?t=")[1];
+
+        HttpHeaders docTokenHeaders = new HttpHeaders();
+        docTokenHeaders.setBearerAuth(token);
+
+        ResponseEntity<ApiResponse<Void>> meResponse = restTemplate.exchange(
+                "/api/v1/auth/me",
+                HttpMethod.GET,
+                new HttpEntity<>(docTokenHeaders),
+                new ParameterizedTypeReference<>() {}
+        );
+
+        assertThat(meResponse.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+    }
+
     private String extractText(byte[] pdf) throws IOException {
         PdfReader reader = new PdfReader(pdf);
         try {

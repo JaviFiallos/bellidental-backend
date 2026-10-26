@@ -81,9 +81,9 @@ class BaseSeedIT {
         Set<String> odontologaPerms = getPermissionCodes(odontologa);
         
         assertThat(odontologaPerms).doesNotContainAnyElementsOf(
-                List.of("BILLING_CREATE", "BILLING_READ", "SCHEDULE_MANAGE", "PATIENT_CREATE", "PATIENT_UPDATE")
+                List.of("SCHEDULE_MANAGE", "PATIENT_CREATE", "PATIENT_UPDATE")
         );
-        assertThat(odontologaPerms).contains("RECORD_CREATE", "RECORD_READ", "RECORD_UPDATE", "APPOINTMENT_CREATE");
+        assertThat(odontologaPerms).contains("RECORD_CREATE", "RECORD_READ", "RECORD_UPDATE", "APPOINTMENT_CREATE", "BILLING_CREATE", "BILLING_READ");
 
         User secretaria = userRepository.findByUsernameAndDeletedAtIsNull("secretaria").orElseThrow();
         Set<String> secretariaPerms = getPermissionCodes(secretaria);

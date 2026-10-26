@@ -1,5 +1,7 @@
 package com.bellidental.persistence.entity;
 
+import org.hibernate.envers.Audited;
+import org.hibernate.envers.RelationTargetAuditMode;
 import com.bellidental.shared.enums.HistoryScope;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -22,6 +24,7 @@ import org.hibernate.annotations.CreationTimestamp;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
+@Audited
 @Entity
 @Table(name = "medical_history_entries")
 @Getter
@@ -40,6 +43,7 @@ public class MedicalHistoryEntry {
     @JoinColumn(name = "clinical_record_id", nullable = false)
     private ClinicalRecord clinicalRecord;
 
+    @Audited(targetAuditMode = RelationTargetAuditMode.NOT_AUDITED)
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "medical_history_condition_id", nullable = false)
     private MedicalHistoryCondition condition;

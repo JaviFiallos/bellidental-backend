@@ -70,7 +70,8 @@ public class TreatmentDirectoryImpl implements TreatmentDirectory {
                             t != null ? t.getName() : null,
                             pt.getToothCode(),
                             pt.getSurfaceCode(),
-                            pt.getQuantity()
+                            pt.getQuantity(),
+                            pt.getPrice()
                     );
                 })
                 .toList();

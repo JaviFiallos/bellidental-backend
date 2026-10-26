@@ -20,6 +20,7 @@ import com.bellidental.persistence.repository.ProfessionalSpecialtyRepository;
 import com.bellidental.persistence.repository.UserRepository;
 import com.bellidental.shared.enums.DiagnosisCertainty;
 import com.bellidental.shared.enums.DocumentType;
+import com.bellidental.shared.enums.EncounterStatus;
 import com.bellidental.shared.enums.FindingStatus;
 import com.bellidental.shared.response.ApiResponse;
 import com.bellidental.support.TestcontainersConfiguration;
@@ -182,6 +183,51 @@ class TreatmentFlowIT {
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
         assertThat(response.getBody().getMessage()).isEqualTo("El hallazgo no pertenece a este paciente.");
+    }
+
+    @Test
+    void recordTreatment_orthodonticsControlWithZeroPriceAndZ464_completesEncounter() {
+        List<TreatmentResponse> treatments = searchTreatments("D86");
+        assertThat(treatments).extracting(TreatmentResponse::code).contains("D8670");
+        TreatmentResponse d8670 = treatments.stream()
+                .filter(t -> "D8670".equals(t.code()))
+                .findFirst()
+                .orElseThrow();
+        assertThat(d8670.basePrice()).isEqualByComparingTo(BigDecimal.ZERO);
+
+        ResponseEntity<ApiResponse<List<Icd10Response>>> icd10Response = exchange(
+                HttpMethod.GET, "/api/v1/icd10?query=Z46", null, odontologaHeaders,
+                new ParameterizedTypeReference<ApiResponse<List<Icd10Response>>>() {});
+        assertThat(icd10Response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        Long z464Id = icd10Response.getBody().getData().stream()
+                .filter(c -> "Z46.4".equals(c.code()))
+                .findFirst()
+                .orElseThrow()
+                .id();
+
+        AddDiagnosisRequest diagnosisRequest = new AddDiagnosisRequest(z464Id, DiagnosisCertainty.DEFINITIVE, "Control de ortodoncia");
+        ResponseEntity<ApiResponse<DiagnosisResponse>> diagnosisResponse = exchange(
+                HttpMethod.POST, "/api/v1/encounters/" + encounterId + "/diagnoses", diagnosisRequest, odontologaHeaders,
+                new ParameterizedTypeReference<ApiResponse<DiagnosisResponse>>() {});
+        assertThat(diagnosisResponse.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        UUID diagnosisId = diagnosisResponse.getBody().getData().id();
+
+        RecordTreatmentRequest treatmentRequest = new RecordTreatmentRequest(
+                d8670.id(), 1, BigDecimal.ZERO, diagnosisId, null, null, null, null
+        );
+        ResponseEntity<ApiResponse<PerformedTreatmentResponse>> recordResponse = exchange(
+                HttpMethod.POST, "/api/v1/encounters/" + encounterId + "/treatments", treatmentRequest, odontologaHeaders,
+                new ParameterizedTypeReference<ApiResponse<PerformedTreatmentResponse>>() {});
+        assertThat(recordResponse.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        PerformedTreatmentResponse performed = recordResponse.getBody().getData();
+        assertThat(performed.price()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(performed.total()).isEqualByComparingTo(BigDecimal.ZERO);
+
+        ResponseEntity<ApiResponse<EncounterResponse>> completeResponse = exchange(
+                HttpMethod.POST, "/api/v1/encounters/" + encounterId + "/complete", null, odontologaHeaders,
+                new ParameterizedTypeReference<ApiResponse<EncounterResponse>>() {});
+        assertThat(completeResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(completeResponse.getBody().getData().status()).isEqualTo(EncounterStatus.COMPLETED);
     }
 
     private UUID createFinding(UUID encounterId, Long conditionId, Short toothCode, String surfaceCode) {

@@ -18,6 +18,17 @@ Lo que **no** automatiza el código: cuentas, DNS, servidor, secretos. Arquitect
 
 Orden: §1 → §2 → §3 → §4 → tareas 022 y 018b (suben sus imágenes) → 018a (sube el compose y despliega) → §6 → §7.
 
+**Estado (2026-10-21):** §1–§6 hechos; `https://app.bellidentalv1.site` en línea (db, backend, frontend, caddy).
+Configuración real del servidor: `docs/tasks/018e-preparacion-vps.md`. Falta: agente (018b, `bot.` responde 502),
+deploy automático del frontend (022b), §7 Meta, respaldos (018c).
+
+| Dato real | Valor |
+|---|---|
+| Dominio | `bellidentalv1.site` (Cloudflare, "DNS only") |
+| VPS | Contabo Cloud VPS 4, `vmi3682955`, región **EU**, IP `169.58.232.65` |
+| Usuario inicial | `ubuntu` (Contabo no deja entrar como `root`) |
+| Environment de GitHub | `production` en cada repo (no otro nombre: el workflow lo busca así) |
+
 ## 1. Dominio y DNS
 1. Comprar el dominio (a nombre de la clínica al implantar, D-17). `.com` en Cloudflare Registrar o Porkbun.
 2. Registros DNS (cuando tengas la IP del VPS, §2):
@@ -34,7 +45,12 @@ Orden: §1 → §2 → §3 → §4 → tareas 022 y 018b (suben sus imágenes) �
    (`~/.ssh/id_ed25519.pub`) si el formulario lo permite. Anotar la IP.
 2. Si el plan incluye snapshots: tomar uno al terminar §3 ("servidor base").
 
-## 3. Preparar el servidor (una vez, como root)
+## 3. Preparar el servidor (una vez)
+Automatizado en `deploy/vps-setup.sh` (idempotente, comprueba todo al final):
+`scp deploy/vps-setup.sh ubuntu@<IP>:~ && ssh -t ubuntu@<IP> 'sudo bash ~/vps-setup.sh'`; luego `sudo reboot` si
+avisa. Los comandos de abajo son la referencia de lo que hace. Diferencia: SSH se cierra con
+`/etc/ssh/sshd_config.d/00-bellidental.conf`, no editando `sshd_config` (el `50-cloud-init.conf` de Contabo trae
+`PasswordAuthentication yes` y sshd usa el primer valor que lee).
 ```bash
 apt update && apt full-upgrade -y
 timedatectl set-timezone UTC                     # el servidor en UTC; la app usa America/Guayaquil
@@ -79,7 +95,9 @@ agente nunca llevan `ports:` en producción.
    ssh-copy-id -i ~/.ssh/bellidental_deploy.pub deploy@<IP>
    ssh-keyscan -H <IP>          # salida → secreto VPS_KNOWN_HOSTS
    ```
-3. En **cada uno** de los 3 repos: Settings → Environments → `production` → secretos y variables:
+3. En **cada uno** de los 3 repos: Settings → Environments → `production` (exactamente ese nombre) →
+   los cuatro `VPS_*` en **Environment secrets** y `APP_DOMAIN` en **Environment variables** (si falta,
+   la comprobación final hace `curl https:///` y falla):
    | Nombre | Tipo | Valor |
    |---|---|---|
    | `VPS_HOST` | secret | IP del VPS |
@@ -90,21 +108,27 @@ agente nunca llevan `ports:` en producción.
 4. **Acceso del VPS a GHCR** (paquetes privados): crear un *Personal access token (classic)* solo con
    `read:packages`, y en el VPS como `deploy`:
    `echo <TOKEN> | docker login ghcr.io -u javifiallos --password-stdin`.
-   (Alternativa: marcar los 3 paquetes como públicos; no contienen secretos.)
+   (Alternativa: marcar los 3 paquetes como públicos; no contienen secretos.) **Hecho así:** backend y frontend
+   son públicos, el VPS no necesita `docker login`.
 
 ## 5. `.env` del VPS (`/opt/bellidental/.env`, `chmod 600`)
 Plantilla: `deploy/.env.example` (tarea 018a). Generar secretos:
 ```bash
-openssl rand -base64 48   # JWT_SECRET
+openssl rand -hex 48      # JWT_SECRET
 openssl rand -hex 32      # BOT_API_KEY (el mismo valor lo usan backend y agente)
-openssl rand -base64 24   # POSTGRES_PASSWORD
+openssl rand -hex 24      # POSTGRES_PASSWORD (hex: sin / + = que molesten en URLs o shell)
 ```
+Generarlos **en el VPS** (`$(openssl rand ...)` dentro del heredoc que escribe `.env`) para que no salgan del
+servidor. `POSTGRES_PASSWORD` solo cuenta en el primer arranque de `db`; cambiarlo después exige `ALTER USER`.
 WhatsApp (`WA_*`): de la app de Meta de producción (`WHATSAPP-SETUP.md`). LLM (`LLM_*`): opcional; sin clave el
 bot usa solo el menú. Nunca subir este archivo a git; guardar una copia en el gestor de contraseñas.
 
 ## 6. Primer despliegue y comprobación
 1. Hacer merge a `main` en frontend y agente → sus pipelines suben las imágenes.
-2. Merge a `main` del backend → su pipeline copia `deploy/` a `/opt/bellidental` y levanta todo.
+2. Merge a `main` del backend → su pipeline copia `docker-compose.yml` y `Caddyfile` a `/opt/bellidental`,
+   hace `pull backend` y levanta `db backend frontend caddy` (el agente lo levanta su pipeline, 018b).
+   El backend **no** vuelve a bajar el frontend: una imagen nueva del frontend se despliega con su propio job
+   (022b) o a mano: `docker compose pull frontend && docker compose up -d frontend`.
    (Manual, si hace falta: `scp deploy/docker-compose.yml deploy/Caddyfile deploy@<IP>:/opt/bellidental/` y en el
    VPS `docker compose up -d`.)
 3. En el VPS: `docker compose ps` → todo `healthy`; `docker compose logs caddy` → certificados emitidos.

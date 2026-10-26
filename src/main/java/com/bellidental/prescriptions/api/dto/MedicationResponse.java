@@ -8,5 +8,6 @@ public record MedicationResponse(
         String presentation,
         String concentration,
         String route,
-        List<MedicationPresetResponse> presets
+        List<MedicationPresetResponse> presets,
+        boolean active
 ) {}

@@ -9,7 +9,9 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.envers.Audited;
 
+@Audited
 @Entity
 @Table(name = "medication_presets")
 @Getter
@@ -39,4 +41,7 @@ public class MedicationPreset {
 
     @Column
     private String instructions;
+
+    @Column(nullable = false)
+    private boolean active = true;
 }

@@ -1,9 +1,11 @@
 package com.bellidental.treatments.api;
 
 import com.bellidental.shared.response.ApiResponse;
+import com.bellidental.treatments.api.dto.CreateTreatmentRequest;
 import com.bellidental.treatments.api.dto.PerformedTreatmentResponse;
 import com.bellidental.treatments.api.dto.RecordTreatmentRequest;
 import com.bellidental.treatments.api.dto.TreatmentResponse;
+import com.bellidental.treatments.api.dto.UpdateTreatmentRequest;
 import com.bellidental.treatments.api.dto.VoidTreatmentRequest;
 import com.bellidental.treatments.application.TreatmentService;
 import jakarta.validation.Valid;
@@ -25,8 +27,42 @@ public class TreatmentController {
 
     @GetMapping("/treatments")
     @PreAuthorize("hasAuthority('RECORD_READ')")
-    public ResponseEntity<ApiResponse<List<TreatmentResponse>>> searchCatalog(@RequestParam(required = false) String query) {
-        return ResponseEntity.ok(ApiResponse.ok(treatmentService.searchCatalog(query)));
+    public ResponseEntity<ApiResponse<List<TreatmentResponse>>> searchCatalog(
+            @RequestParam(required = false) String query,
+            @RequestParam(required = false) Long specialtyId
+    ) {
+        return ResponseEntity.ok(ApiResponse.ok(treatmentService.searchCatalog(query, specialtyId)));
+    }
+
+    @GetMapping("/treatments/manage")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<List<TreatmentResponse>>> listAll() {
+        return ResponseEntity.ok(ApiResponse.ok(treatmentService.listAll()));
+    }
+
+    @PostMapping("/treatments")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<TreatmentResponse>> create(@Valid @RequestBody CreateTreatmentRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.ok("Tratamiento creado.", treatmentService.create(request)));
+    }
+
+    @PutMapping("/treatments/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<TreatmentResponse>> update(@PathVariable Long id, @Valid @RequestBody UpdateTreatmentRequest request) {
+        return ResponseEntity.ok(ApiResponse.ok("Tratamiento actualizado.", treatmentService.update(id, request)));
+    }
+
+    @PostMapping("/treatments/{id}/deactivate")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<TreatmentResponse>> deactivate(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok("Tratamiento desactivado.", treatmentService.setActive(id, false)));
+    }
+
+    @PostMapping("/treatments/{id}/activate")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<TreatmentResponse>> activate(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok("Tratamiento activado.", treatmentService.setActive(id, true)));
     }
 
     @PostMapping("/encounters/{id}/treatments")

@@ -9,9 +9,11 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.envers.Audited;
 
 import java.math.BigDecimal;
 
+@Audited
 @Entity
 @Table(name = "treatment_catalog")
 @Getter
@@ -38,4 +40,8 @@ public class Treatment {
 
     @Column(nullable = false)
     private boolean active = true;
+
+    /** Especialidad opcional para filtrar el catálogo; null = tratamiento de cualquier especialidad. */
+    @Column(name = "specialty_id")
+    private Long specialtyId;
 }

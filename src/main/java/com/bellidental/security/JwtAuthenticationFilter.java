@@ -51,6 +51,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         final String jwt = authHeader.substring(BEARER_PREFIX.length());
         final String subjectIdStr;
         try {
+            String purpose = jwtService.extractClaim(jwt, claims -> claims.get("purpose", String.class));
+            if (purpose != null) {
+                filterChain.doFilter(request, response);
+                return;
+            }
             subjectIdStr = jwtService.extractSubject(jwt);
         } catch (JwtException e) {
             filterChain.doFilter(request, response);

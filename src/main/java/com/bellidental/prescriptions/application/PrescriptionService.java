@@ -172,6 +172,9 @@ public class PrescriptionService {
         if (!preset.getMedicationId().equals(medicationId)) {
             throw new InvalidInputException("El preset no corresponde al medicamento");
         }
+        if (!preset.isActive()) {
+            throw new BusinessException("La posología está desactivada.");
+        }
         return preset;
     }
 

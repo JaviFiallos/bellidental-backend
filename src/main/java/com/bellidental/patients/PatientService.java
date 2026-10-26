@@ -54,7 +54,7 @@ public class PatientService {
         return patientsPage.map(p -> PatientResponse.from(p, getZone()));
     }
     
-    private String toPhonePrefix(String digits) {
+    static String toPhonePrefix(String digits) {
         if (digits.startsWith("0")) {
             return "593" + digits.substring(1);
         }

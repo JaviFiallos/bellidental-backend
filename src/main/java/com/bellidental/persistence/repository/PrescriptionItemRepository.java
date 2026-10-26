@@ -18,4 +18,6 @@ public interface PrescriptionItemRepository extends JpaRepository<PrescriptionIt
     void deleteByPrescriptionId(UUID prescriptionId);
 
     List<PrescriptionItem> findByPrescriptionIdIn(Collection<UUID> prescriptionIds);
+
+    boolean existsByMedicationId(Long medicationId);
 }

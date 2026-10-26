@@ -90,8 +90,8 @@ tests de reglas puras). La columna `*IT` y los tests listados en §4 son orienta
 | 011b | Receta PDF | — | 011a | — |
 | 011c | Historial clínico `clinical-summary` (RF06, RF09) | — | 010a, 011a | `ClinicalSummaryIT` |
 | 011d | Receta PDF: diseño con la marca (logo, marca de agua, sello y firma, servicios, franja de contacto) | — | 011b | `PrescriptionPdfIT` (aserciones) |
-| 012 | Cobros + comprobante | V15 (renumerada: V13 y V14 ya existen) | 010 | — |
-| 013 | Auditoría Envers | V16 | 012 | — (añade un caso a `EncounterFlowIT`) |
+| 012 | Cobros + comprobante | V15 (renumerada: V13 y V14 ya existen) | 010a | `PaymentFlowIT` |
+| 013 | Auditoría Envers | V16 | 012 | `AuditDiffTest` + caso en `EncounterFlowIT` |
 | 014 | Google Calendar (sistema → Google) | — | 006 | — |
 | 015a | Bot (Java): API interna base — V13, clave de servicio, consentimiento, info, identificación | V13 | 006 | `BotApiIT` |
 | 015b | Agente (Python): esqueleto, webhook, firma, envío, cliente del backend | — | 015a | — (pytest) |
@@ -108,6 +108,19 @@ tests de reglas puras). La columna `*IT` y los tests listados en §4 son orienta
 | 018c | Respaldos diarios (pg_dump + rclone crypt a Drive), restore.sh y `docs/OPERATIONS.md` | — | 018a | — |
 | 018d | Exportación abierta: `GET /admin/export` (ZIP de CSV) | — | 018a | `AdminExportIT` |
 | 018e | Preparación del VPS: `deploy/vps-setup.sh` y registro de la configuración del servidor | — | 018a | — |
+| 019 | Gestión de usuarios por el ADMIN: crear, roles, reset, desactivar, cambio de contraseña (D-24, reemplaza D-13) | — | 003 | `UserManagementIT` + `PasswordRulesTest` |
+| 020 | Estadísticas del negocio: `GET /dashboard/summary` (D-25, D-26) | — | 012 | `DashboardSummaryIT` + `NoShowRateTest` |
+| 021 | Catálogo de tratamientos y especialidades administrable por el ADMIN (D-27) | V17 | 010a, 013 | `CatalogAdminIT` |
+| 022 | Cobros: el odontólogo cobra (D-8d) y `GET /patients/{id}/payments` (G-11 del frontend) | V18 (solo datos) | 012 | `PaymentFlowIT` (casos cambiados) |
+| 023 | Cambiar contraseña: actual incorrecta → 400 (G-13 del frontend) | — | 019 | `UserManagementIT` (aserción) |
+| 024 | Estadísticas: serie por día, top 3 tratamientos y top 3 diagnósticos | — | 020 | `DashboardSummaryIT` (aserciones) |
+| 025 | Auditoría: lista paginada `GET /audit` y historial completo de la atención (G-7 del frontend) | — | 013, 021 | `AuditLogIT` |
+| 026 | Enlace temporal firmado para los PDF de receta y comprobante (G-14 del frontend, D-28) | — | 011b, 012 | `PrescriptionPdfIT` + `PaymentFlowIT` (casos nuevos) |
+| 027 | Walk-in con hora y duración elegidas en bloques de 15 min (G-15 del frontend, D-29) | — | 006f | IT de walk-in (casos nuevos) |
+| — | Semilla ampliada de medicamentos de uso odontológico (34 activos, 40 presets; lidocaína desactivada) | V19 | 011a | — |
+| 028 | Catálogo de medicamentos y posologías administrable por el odontólogo (D-30) | V20 | 011a, V19 | `MedicationCatalogIT` |
+| 029 | Lista de pacientes: últimos atendidos / registrados con saldo, paginada (G-16 del frontend, D-31) | V21 (índices) | 012, 013 | `PatientListIT` |
+| 030 | Catálogo de ortodoncia: Z46.4, especialidad Ortodoncia (15 min), D8080 y D8670 (G-17 del frontend, D-32) | V22 | 007, 010a, 021 | Icd10SearchIT + TreatmentFlowIT (casos nuevos) |
 
 (007 y 008 van separadas: CIE-10 en `V7__icd10_catalog.sql` y atención en `V7_1__encounters.sql`, para no renumerar 009+.)
 (El historial inmediato `GET /patients/{id}/clinical-summary` de §4.4 sale de la 008: es la tarea 011c.)
@@ -129,6 +142,7 @@ Los módulos ya existen; se ajustan y se exponen solo estas operaciones.
 - `PUT /patients/{id}` (PATIENT_UPDATE). `admin_notes` editable por recepción (máx 1000 caracteres, trim; vacío borra la nota).
 - `GET /patients?query=` (PATIENT_READ): por cédula exacta, prefijo de teléfono o nombre (ILIKE ahora;
   trigram cuando exista el índice de V7).
+- `GET /patients/list?view=...` (PATIENT_READ; saldo con BILLING_READ) — tarea 029 (D-31).
 - `GET /patients/{id}`: identificación + edad calculada + `adminNotes`. Nunca datos clínicos.
 - Interfaz pública `PatientDirectory` (buscar por id, por teléfono, por documento) para agenda, bot y cobros.
 - Desactivar = `active=false`; no hay borrado.
@@ -200,8 +214,7 @@ PENDING ──confirmar──▶ CONFIRMED
   solo en Java: la BD es la garantía.
 - La cita debe caer dentro del horario efectivo del profesional, salvo `WALK_IN` y
   `source=PROFESSIONAL` (el doctor puede abrir fuera de horario).
-- Walk-in: `POST /appointments/walk-in` crea cita `WALK_IN` en el primer hueco libre desde ahora con
-  `checked_in_at=now`; si no hay hueco → 409 y recepción elige otro profesional/hora (O4).
+- Walk-in: `POST /appointments/walk-in` crea cita `WALK_IN` con `checked_in_at=now`. Acepta opcionalmente `startAt` y `endAt` (tarea 027, G-15, D-29): deben ser de hoy, `startAt` ≥ inicio del bloque actual de 15 min, duración 15–240 min en múltiplos de 15; si se omiten las horas, busca el primer hueco libre desde ahora con la duración de la especialidad; si no hay hueco o hay cruce → 409 (O4).
 - Reprogramar (`POST /appointments/{id}/reschedule` con nueva hora): en una transacción, original →
   `RESCHEDULED`, nueva cita con `rescheduled_from_id`, mismo paciente/profesional/especialidad salvo
   que se indique otro. Solo desde PENDING/CONFIRMED. Lo usan recepción y el bot.
@@ -350,33 +363,43 @@ Reglas:
 - `GET /prescriptions/{id}/pdf` (solo ISSUED): clínica, "CONFIDENCIAL", paciente (nombre, cédula,
   edad), fecha, CIE-10 + descripción, ítems, indicaciones generales, profesional + registro, línea
   de firma y sello.
+- Enlace temporal firmado (tarea 026, G-14): `POST /prescriptions/{id}/pdf-link` (`RECORD_READ`) genera enlace de 5 min; `GET /prescriptions/{id}/receta.pdf?t=` público sin Bearer; el token no autentica como Bearer ni el de sesión sirve como `t`.
+- Semilla ampliada V19: antibióticos, analgésicos/AINE, corticoide, antivirales, antifúngicos y tópicos bucales de
+  receta común (sin receta especial ni anestésicos de consultorio); pediátricos con dosis por kg.
+- Catálogo administrable (tarea 028, D-30): el odontólogo (RECORD_CREATE) crea, edita y desactiva medicamentos y
+  presets; compartido por toda la clínica, auditado con Envers. Medicamento usado en recetas no se edita (se desactiva
+  y se crea otro); la posología sigue siendo texto libre.
 Unit: copia de preset, transición DRAFT→ISSUED, inmutabilidad, diagnóstico de otra atención → error.
 PDF: un test que genera bytes no vacíos y contiene "CONFIDENCIAL".
 
 ### 4.8 Cobros — tarea 012 (RF08)
 Paquete `com.bellidental.billing`. Migración V15: `payments`, secuencia de comprobante
-(`receipt_number` = `C-000001`), CHECK `amount > 0`, REVOKE DELETE (notas SQL).
+(`receipt_number` = `C-000001`), CHECK `amount > 0`, trigger BEFORE DELETE (D-8c).
 
 Reglas:
-- SECRETARIA (BILLING_CREATE) registra abono: monto, método, opcionalmente la atención de la sesión.
+- SECRETARIA y ODONTOLOGO (BILLING_CREATE) registran abono: monto, método, opcionalmente la atención de la sesión.
 - **Saldo** = Σ(price × quantity) de tratamientos no anulados en atenciones no anuladas
   − Σ pagos no anulados. Nunca se guarda. Puede ser negativo (saldo a favor).
 - `GET /patients/{id}/account` (BILLING_READ): estado de cuenta tipo ficha rápida — por sesión:
   fecha, tratamientos, profesional, cargo, abono, saldo acumulado. Sin diagnósticos.
+- `GET /patients/{id}/payments` (BILLING_READ): lista de pagos del paciente (vigentes y anulados), más reciente primero, con quién lo recibió (username) y motivo de anulación si aplica.
 - `GET /payments/{id}/receipt` PDF: "Comprobante interno — no válido como factura", "CONFIDENCIAL",
   paciente, detalle, abono, saldo, línea de firma del paciente.
-- Anular pago (D-8): ADMIN y SECRETARIA (es quien cobra), con `void_reason` obligatorio; queda en
-  Envers. Usa el permiso BILLING_CREATE (no hace falta tocar la semilla).
+- Enlace temporal firmado (tarea 026, G-14): `POST /payments/{id}/receipt-link` (`BILLING_READ`) genera enlace de 5 min; `GET /payments/{id}/comprobante.pdf?t=` público sin Bearer; el token no autentica como Bearer ni el de sesión sirve como `t`.
+- Anular pago (D-8, D-8d): ADMIN, SECRETARIA y ODONTOLOGO, con `void_reason` obligatorio; queda en
+  Envers. Usa el permiso BILLING_CREATE.
 Unit: cálculo de saldo (anulados excluidos, pago sin atención, saldo a favor), secuencia.
 
-### 4.9 Auditoría — tarea 013 (RNF02)
+### 4.9 Auditoría — tarea 013, 025 (RNF02)
 - Envers `@Audited` en: clinical_records, medical_history_entries, encounters, encounter_diagnoses,
   dental_findings, performed_treatments, prescriptions, prescription_items, payments, appointments,
   patients. V16 crea `revision_info` y las tablas `*_aud`.
 - `RevisionListener` guarda `user_id` del usuario autenticado (bot → `bot_whatsapp`; jobs → null).
 - Spring Data Auditing mantiene `created_at/updated_at`.
 - `GET /audit/{entity}/{id}` (ADMIN): quién, cuándo, qué cambió.
-IT: añadir a `EncounterFlowIT` que la revisión registra al odontólogo.
+- `GET /audit` (ADMIN): lista paginada de revisiones por rango de fechas, entidad, usuario o paciente.
+- `GET /audit/encounters/{id}/full` (ADMIN): historial cronológico de la atención y sus entidades hijas (diagnósticos, hallazgos, tratamientos, recetas e ítems).
+IT: añadir a `EncounterFlowIT` que la revisión registra al odontólogo; `AuditLogIT` para lista paginada y full encounter.
 
 ### 4.10 Google Calendar — tarea 014 (RF07, una vía)
 Paquete `com.bellidental.calendar`. La agenda del sistema es la única fuente; Google es un espejo
@@ -549,21 +572,23 @@ Proveedor: Contabo Cloud VPS 6 GB, Ubuntu 24.04; imágenes en GHCR; CI/CD con Gi
   secretos (JWT, `X-Bot-Key`, token de WhatsApp).
 Unit: escritor CSV (escapes, UTF-8, cabeceras).
 
-### 4.13 Cuentas de acceso para profesionales — **posterior al MVP** (D-13)
-Hoy no existe alta de usuarios por API (`/auth/register` se cerró en la tarea 003; `UserController` solo lista,
-edita y hace borrado lógico, para ADMIN). Mientras no se implemente, **una cuenta nueva se crea con una
-migración Flyway** como las de la semilla (V-siguiente, UUID fijo, rol ODONTOLOGO, contraseña temporal en BCrypt).
+### 4.13 Gestión de usuarios — tarea 019 (D-24)
+El ADMIN gestiona cuentas (reemplaza D-13: el requerimiento del usuario lo pidió dentro del MVP).
 
-Endpoints estipulados para cuando se implemente:
 | Método y ruta | Permiso | Cuerpo | Efecto |
 |---|---|---|---|
-| `POST /api/v1/professionals/{id}/access` | ADMIN (`PROFESSIONAL_MANAGE`) | `{email, temporaryPassword}` | Crea `users` (username = parte local del email), rol ODONTOLOGO, enlaza `professionals.user_id`. 409 si el email existe o el profesional ya tiene cuenta |
-| `POST /api/v1/users/{id}/reset-password` | ADMIN | `{temporaryPassword}` | Reemplaza el hash; no revela la contraseña anterior |
-| `PUT /api/v1/auth/password` | autenticado | `{currentPassword, newPassword}` | Cambia la propia contraseña (mín. 10 caracteres); 401 si la actual no coincide |
-| `POST /api/v1/users/{id}/deactivate` | ADMIN | — | `active=false`; reemplaza al `DELETE /users/{id}` actual |
+| `GET /api/v1/users`, `GET /api/v1/users/{id}` | ADMIN | — | Listado y detalle de usuarios activos |
+| `POST /api/v1/users` | ADMIN | `{email, username?, temporaryPassword, roles}` | Crea ODONTOLOGO o SECRETARIA (201). Si falta `username`, usa la parte local del email. No se crea ADMIN |
+| `PUT /api/v1/users/{id}` | ADMIN | `{email}` | Cambia el email; 409 si ya lo usa otra cuenta |
+| `PUT /api/v1/users/{id}/roles` | ADMIN | `{roles}` | Reemplaza roles entre ODONTOLOGO y SECRETARIA; no toca ADMIN ni cuentas del sistema |
+| `POST /api/v1/users/{id}/reset-password` | ADMIN | `{temporaryPassword}` | Reemplaza el hash; sin cambio forzado en el primer login |
+| `POST /api/v1/users/{id}/deactivate` · `activate` | ADMIN | — | `active` = false / true; no se puede desactivar la propia cuenta |
+| `POST /api/v1/professionals/{id}/access` | ADMIN | `{email, temporaryPassword}` | Crea la cuenta ODONTOLOGO y enlaza `professionals.user_id` (201). 409 si el profesional ya tiene cuenta |
+| `PUT /api/v1/auth/password` | autenticado | `{currentPassword, newPassword}` | Cambia la propia contraseña (mín. 10 caracteres); 400 si la actual no coincide |
 
-Reglas: no se crean ADMIN ni SECRETARIA por API (siguen fijos por semilla); nunca se registran contraseñas en logs;
-forzar el cambio de la contraseña temporal requeriría una columna `must_change_password` (cambio de esquema, decidir entonces).
+Reglas: `DELETE /api/v1/users/{id}` se elimina (sustituido por desactivar); las contraseñas no se registran en
+logs ni en `toString`; los cambios de activo o roles surten efecto en la siguiente petición (el filtro JWT relee
+el usuario).
 
 ---
 
@@ -576,8 +601,11 @@ forzar el cambio de la contraseña temporal requeriría una columna `must_change
 | Horarios de profesionales | sí | lectura | **registra** | lectura (disponibilidad) |
 | Historia, atención, odontograma, recetas | lectura* | todo | **nada** | **nada** |
 | Tratamientos | lectura* | registrar | solo vía estado de cuenta | precios del catálogo |
-| Cobros | todo + anular | nada | registrar, consultar, anular | nada |
+| Cobros | todo + anular | registrar, consultar, anular | registrar, consultar, anular | nada |
 | Auditoría, exportación | sí | no | no | no |
+| Estadísticas del negocio (`/dashboard/summary`, con dinero) | sí | no (vista propia pendiente, D-26b) | no | no |
+| Gestión de usuarios | sí | no | no | no |
+| Catálogo de tratamientos y especialidades (crear, editar, desactivar) | sí | lectura | no | precios públicos |
 
 \* El director tiene además `ODONTOLOGO`. Si se quiere que ADMIN sin ODONTOLOGO no vea clínico,
 quitar RECORD_* de ADMIN en la semilla (hoy ADMIN = todos).
@@ -599,7 +627,7 @@ quitar RECORD_* de ADMIN en la semilla (hoy ADMIN = todos).
 | D-10 | Cancelar o reprogramar por bot hasta 2 h antes | §4.11 |
 | D-11 | `postgres:16` también en `docker-compose` de despliegue | §4.12 |
 | D-12 | La secretaria registra los horarios: permiso `SCHEDULE_MANAGE` para ADMIN y SECRETARIA | tarea 002, §4.3 |
-| D-13 | Alta de cuentas para profesionales: posterior al MVP; endpoints estipulados; mientras tanto, por migración | §4.13 |
+| D-13 | ~~Alta de cuentas para profesionales: posterior al MVP~~ Reemplazada por D-24 | §4.13 |
 | D-14 | Odontograma completo: simbología en `dental_condition_symbols`, alcance SPAN para prótesis, categoría periodontal y rango de grado | `schema.dbml`, §4.5 |
 | D-15 | appointments lee el vínculo cita→atención con EncounterRepository (solo lectura) para evitar el ciclo con clinical | §4.3 |
 | D-16 | Reemplazar los ítems de una receta DRAFT borra sus filas de `prescription_items`; es la única excepción a «sin DELETE en datos clínicos», porque un borrador nunca se entregó al paciente. Los ítems de una receta ISSUED nunca se borran | §4.7 |
@@ -611,6 +639,23 @@ quitar RECORD_* de ADMIN en la semilla (hoy ADMIN = todos).
 | D-22 | Número del bot = chip prepago dedicado (no un número personal ni el de recepción). Límites confirmados: 250 destinatarios/24 h por portafolio, máx. 2 números | §4.11, `WHATSAPP-SETUP.md` |
 | D-23 | Conjunto de evaluación del NLU (precisión por intención, tareas completadas, derivaciones, costo): fuera del MVP, queda como recomendación de la tesis | `MVP-SCOPE.md` |
 
+**Confirmadas por el usuario (2026-10-21):**
+| ID | Decisión | Dónde |
+|---|---|---|
+| D-8b | No se crea `BillingDirectory`: nadie fuera de cobros la necesita; es solo una decisión de código, no cambia quién cobra (quién cobra: ver D-8d). Cobran y consultan saldos SECRETARIA y ADMIN (el director es opcional) | §4.8, tarea 012 |
+| D-8c | El REVOKE DELETE de `payments` no se aplica por rol (la app y Flyway usan el mismo usuario); en su lugar, trigger `BEFORE DELETE` que lanza excepción. Los pagos solo se anulan (con motivo) y la anulación queda en Envers | §4.8, tarea 012 |
+| D-12b | Métodos de pago EFECTIVO, TRANSFERENCIA y TARJETA; un abono puede exceder la deuda y dejar saldo a favor | tarea 012 |
+| D-24 | Gestión de cuentas solo por el ADMIN: crea y desactiva ODONTOLOGO y SECRETARIA; ADMIN no se crea por API; email, roles, contraseña temporal y activar/desactivar; sin cambio forzado de contraseña en el primer login (requiere columna nueva); reemplaza D-13 | §4.13, tarea 019 |
+| D-25 | Estadísticas con consultas nativas agregadas en un repositorio de solo lectura (`DashboardRepository`), no por Directories; la regla de saldo vive también en SQL y el IT comprueba que coincide con `GET /patients/{id}/account`. Se exponen por un único endpoint `GET /dashboard/summary` | tarea 020 |
+| D-26 | El dashboard con cifras de dinero es solo para ADMIN (el director). El odontólogo tendrá otra vista sin dinero (D-26b, pendiente) | tarea 020 |
+| D-27 | Catálogo de tratamientos y especialidades administrable por el ADMIN (CRUD por API, activar/desactivar, sin `DELETE`); columna opcional `treatment_catalog.specialty_id` solo para filtrar (no restringe al odontólogo); `code` inmutable; auditado con Envers | tarea 021 |
+| D-8d | El odontólogo también cobra y anula pagos con motivo (permisos BILLING_CREATE y BILLING_READ). Reemplaza la parte de D-8b «cobran SECRETARIA y ADMIN» | §4.8, tarea 022 |
+| D-28 | PDF de receta y comprobante por enlace temporal firmado (JWT de 5 min con `purpose=document`, mismo origen, GET público solo con token válido); nunca un enlace sin token (dato de salud). Los GET con Bearer se conservan | tarea 026 |
+| D-29 | Walk-in con `startAt`/`endAt` opcionales: hoy, desde el bloque de 15 min actual, duración 15–240 en múltiplos de 15; sin horas, el primer hueco como antes; sigue exento del horario | tarea 027 |
+| D-30 | Medicamentos y presets administrables por el odontólogo (y ADMIN) con RECORD_CREATE; catálogo compartido, sin `professional_id` (el autor queda en Envers); sin `DELETE` (`active`); un medicamento ya usado en recetas no se edita; posología en texto libre | tarea 028 |
+| D-31 | `GET /patients/list` de solo lectura con `PATIENT_READ`; el saldo (`pendingBalance`) solo con `BILLING_READ` (si no, `null`; `withBalance=true` → 403); saldo calculado en SQL igual que `AccountService`; rango máx. 366 días | tarea 029 |
+| D-32 | Ortodoncia con tratamiento completo (monto acordado D8080, $1200) y controles a $0 (D8670) con diagnóstico Z46.4; especialidad Ortodoncia (15 min); saldo refleja cuánto falta pagar con abonos libres | tarea 030 |
+
 **Pendientes:**
 | ID | Decisión | Propuesta | Afecta |
 |---|---|---|---|
@@ -619,3 +664,4 @@ quitar RECORD_* de ADMIN en la semilla (hoy ADMIN = todos).
 | D-14c | Odontóloga: ¿caries tratada = obturación (FILLING) y extracción indicada realizada = perdido por caries (MISSING_CARIES)? | sí (CARIES→FILLING, EXTRACTION→MISSING_CARIES) | 010b |
 | D-20b | Proveedor y modelo de IA para el NLU (se evaluarán opciones baratas, incluidos modelos chinos alojados fuera de China) | Decidir en 016e | 016e |
 | D-21b | ¿Avisar a recepción cuando el bot agenda una urgencia? Hoy no hay bandeja: la cita aparece en la agenda con `source=BOT` | No avisar en el MVP | 016a |
+| D-26b | Estadísticas propias del odontólogo (sin cifras de dinero): pacientes atendidos, atenciones, tratamientos y diagnósticos frecuentes. Sin tarea por ahora | Posterior | — |
