@@ -75,6 +75,23 @@ services:
       backend:
         condition: service_healthy
 
+  backup:
+    image: ghcr.io/javifiallos/bellidental-backup:${BACKUP_TAG:-latest}
+    restart: unless-stopped
+    mem_limit: 256m
+    logging: *default-logging
+    environment:
+      TZ: America/Guayaquil
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      BACKUP_RCLONE_REMOTE: ${BACKUP_RCLONE_REMOTE:-}
+      RCLONE_CONFIG: /config/rclone/rclone.conf
+    volumes:
+      - ./backups:/backups
+      - ./secrets/rclone:/config/rclone
+    depends_on:
+      db:
+        condition: service_healthy
+
   caddy:
     image: caddy:2.11.7-alpine
     restart: unless-stopped
