@@ -118,7 +118,7 @@ class PrescriptionPdfIT {
         assertThat(text).contains("Sello");
         assertThat(text).contains("Firma");
         assertThat(text).contains("Los mejores tratamientos");
-        assertThat(text).contains("+593 00 000 0000");
+        assertThat(text).contains("+593 96 219 8909");
         assertThat(text).doesNotContain("Twitter");
 
         Files.createDirectories(Path.of("target"));

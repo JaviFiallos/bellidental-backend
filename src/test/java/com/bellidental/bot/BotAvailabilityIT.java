@@ -3,11 +3,14 @@ package com.bellidental.bot;
 import com.bellidental.appointments.api.dto.ScheduleRequest;
 import com.bellidental.bot.api.dto.BotAppointmentResponse;
 import com.bellidental.bot.api.dto.BotSlotResponse;
+import com.bellidental.bot.api.dto.BotSpecialtyResponse;
 import com.bellidental.bot.api.dto.UrgentSlotsResponse;
 import com.bellidental.identity.api.dto.AuthResponse;
 import com.bellidental.identity.api.dto.LoginRequest;
 import com.bellidental.patients.CreatePatientRequest;
 import com.bellidental.patients.PatientResponse;
+import com.bellidental.professionals.CreateSpecialtyRequest;
+import com.bellidental.professionals.SpecialtyResponse;
 import com.bellidental.persistence.entity.Professional;
 import com.bellidental.persistence.entity.User;
 import com.bellidental.persistence.repository.ProfessionalRepository;
@@ -141,6 +144,40 @@ class BotAvailabilityIT {
         assertThat(slots.size()).isLessThanOrEqualTo(10);
         assertThat(slots).isSortedAccordingTo(Comparator.comparing(BotSlotResponse::startAt));
         assertThat(slots.get(0).professionalName()).isNotBlank();
+    }
+
+    @Test
+    void specialties_withoutActiveProfessional_omitsSpecialty() {
+        LoginRequest login = new LoginRequest("director@bellidental.local", "Cambiar.2026!");
+        ResponseEntity<ApiResponse<AuthResponse>> loginResp = restTemplate.exchange(
+                "/api/v1/auth/login",
+                HttpMethod.POST,
+                new HttpEntity<>(login),
+                new ParameterizedTypeReference<>() {}
+        );
+        HttpHeaders directorHeaders = new HttpHeaders();
+        directorHeaders.setBearerAuth(loginResp.getBody().getData().accessToken());
+
+        // Especialidad activa sin profesionales
+        ResponseEntity<ApiResponse<SpecialtyResponse>> created = restTemplate.exchange(
+                "/api/v1/specialties",
+                HttpMethod.POST,
+                new HttpEntity<>(new CreateSpecialtyRequest("Sin profesionales " + UUID.randomUUID(), 30), directorHeaders),
+                new ParameterizedTypeReference<>() {}
+        );
+        assertThat(created.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        Long emptySpecialtyId = created.getBody().getData().id();
+
+        ResponseEntity<ApiResponse<List<BotSpecialtyResponse>>> resp = restTemplate.exchange(
+                "/api/v1/bot/specialties",
+                HttpMethod.GET,
+                new HttpEntity<>(botHeaders()),
+                new ParameterizedTypeReference<>() {}
+        );
+        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.OK);
+        List<BotSpecialtyResponse> specialties = resp.getBody().getData();
+        assertThat(specialties).noneMatch(s -> s.specialtyId().equals(emptySpecialtyId));
+        assertThat(specialties).anyMatch(s -> s.specialtyId().equals(1L));
     }
 
     @Test

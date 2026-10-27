@@ -35,6 +35,7 @@ public class BotAvailabilityService {
 
     public List<BotSpecialtyResponse> getActiveSpecialties() {
         return professionalDirectory.findActiveSpecialties().stream()
+                .filter(s -> !professionalDirectory.findActiveBySpecialty(s.id()).isEmpty())
                 .map(s -> new BotSpecialtyResponse(s.id(), s.name(), s.defaultDurationMinutes()))
                 .toList();
     }

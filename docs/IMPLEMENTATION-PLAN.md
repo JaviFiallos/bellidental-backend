@@ -121,6 +121,7 @@ tests de reglas puras). La columna `*IT` y los tests listados en §4 son orienta
 | 028 | Catálogo de medicamentos y posologías administrable por el odontólogo (D-30) | V20 | 011a, V19 | `MedicationCatalogIT` |
 | 029 | Lista de pacientes: últimos atendidos / registrados con saldo, paginada (G-16 del frontend, D-31) | V21 (índices) | 012, 013 | `PatientListIT` |
 | 030 | Catálogo de ortodoncia: Z46.4, especialidad Ortodoncia (15 min), D8080 y D8670 (G-17 del frontend, D-32) | V22 | 007, 010a, 021 | Icd10SearchIT + TreatmentFlowIT (casos nuevos) |
+| 031 | Bot: /bot/specialties solo con especialidades que tienen profesionales activos | — | 015a | BotAvailabilityIT (caso nuevo) |
 
 (007 y 008 van separadas: CIE-10 en `V7__icd10_catalog.sql` y atención en `V7_1__encounters.sql`, para no renumerar 009+.)
 (El historial inmediato `GET /patients/{id}/clinical-summary` de §4.4 sale de la 008: es la tarea 011c.)

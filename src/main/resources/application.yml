@@ -58,18 +58,17 @@ application:
       change-min-hours: 2
   clinic:
     name: Bellidental Clínica Dental   # provisional
-    tagline: Creamos bellas sonrisas   # provisional
-    address: Dirección por definir      # provisional
-    phone: "0000000000"                 # provisional
+    tagline: Creamos bellas sonrisas
+    address: Edificio Cruz Roja, tercer piso, Baños de Agua Santa
+    phone: "0962198909"
     zone: America/Guayaquil
     hours:
-      - "Lunes a viernes 09:00–13:00 y 15:00–19:00"
-      - "Sábados 09:00–13:00"
+      - "Lunes a sábado 08:00–12:00 y 14:00–20:00"
     payment-methods:
       - "Efectivo"
       - "Transferencia"
-    reception-whatsapp: "593000000000"
-    after-hours-phone: "593000000000"
+    reception-whatsapp: "593962198909"
+    after-hours-phone: "593962198909"
     services:
       - "Odontología general"
       - "Endodoncia"
