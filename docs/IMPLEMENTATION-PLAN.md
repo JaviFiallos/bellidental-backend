@@ -122,6 +122,7 @@ tests de reglas puras). La columna `*IT` y los tests listados en §4 son orienta
 | 029 | Lista de pacientes: últimos atendidos / registrados con saldo, paginada (G-16 del frontend, D-31) | V21 (índices) | 012, 013 | `PatientListIT` |
 | 030 | Catálogo de ortodoncia: Z46.4, especialidad Ortodoncia (15 min), D8080 y D8670 (G-17 del frontend, D-32) | V22 | 007, 010a, 021 | Icd10SearchIT + TreatmentFlowIT (casos nuevos) |
 | 031 | Bot: /bot/specialties solo con especialidades que tienen profesionales activos | — | 015a | BotAvailabilityIT (caso nuevo) |
+| 032 | El director edita email y nombre de usuario de una cuenta (D-24b) | — | 019 | UserManagementIT (casos nuevos) |
 
 (007 y 008 van separadas: CIE-10 en `V7__icd10_catalog.sql` y atención en `V7_1__encounters.sql`, para no renumerar 009+.)
 (El historial inmediato `GET /patients/{id}/clinical-summary` de §4.4 sale de la 008: es la tarea 011c.)
@@ -580,7 +581,7 @@ El ADMIN gestiona cuentas (reemplaza D-13: el requerimiento del usuario lo pidi�
 |---|---|---|---|
 | `GET /api/v1/users`, `GET /api/v1/users/{id}` | ADMIN | — | Listado y detalle de usuarios activos |
 | `POST /api/v1/users` | ADMIN | `{email, username?, temporaryPassword, roles}` | Crea ODONTOLOGO o SECRETARIA (201). Si falta `username`, usa la parte local del email. No se crea ADMIN |
-| `PUT /api/v1/users/{id}` | ADMIN | `{email}` | Cambia el email; 409 si ya lo usa otra cuenta |
+| `PUT /api/v1/users/{id}` | ADMIN | `{email?, username?}` | Cambia email y/o nombre de usuario (parcial: lo que no se envía no cambia; 400 si no se envía nada; 409 si ya lo usa otra cuenta). El ADMIN puede editar su propia cuenta |
 | `PUT /api/v1/users/{id}/roles` | ADMIN | `{roles}` | Reemplaza roles entre ODONTOLOGO y SECRETARIA; no toca ADMIN ni cuentas del sistema |
 | `POST /api/v1/users/{id}/reset-password` | ADMIN | `{temporaryPassword}` | Reemplaza el hash; sin cambio forzado en el primer login |
 | `POST /api/v1/users/{id}/deactivate` · `activate` | ADMIN | — | `active` = false / true; no se puede desactivar la propia cuenta |
@@ -647,6 +648,7 @@ quitar RECORD_* de ADMIN en la semilla (hoy ADMIN = todos).
 | D-8c | El REVOKE DELETE de `payments` no se aplica por rol (la app y Flyway usan el mismo usuario); en su lugar, trigger `BEFORE DELETE` que lanza excepción. Los pagos solo se anulan (con motivo) y la anulación queda en Envers | §4.8, tarea 012 |
 | D-12b | Métodos de pago EFECTIVO, TRANSFERENCIA y TARJETA; un abono puede exceder la deuda y dejar saldo a favor | tarea 012 |
 | D-24 | Gestión de cuentas solo por el ADMIN: crea y desactiva ODONTOLOGO y SECRETARIA; ADMIN no se crea por API; email, roles, contraseña temporal y activar/desactivar; sin cambio forzado de contraseña en el primer login (requiere columna nueva); reemplaza D-13 | §4.13, tarea 019 |
+| D-24b | El ADMIN edita email y username de cualquier cuenta no del sistema, incluida la suya; actualización parcial por el mismo PUT; la sesión sigue válida; la auditoría muestra el username actual (se resuelve por user_id) | §4.13, tarea 032 |
 | D-25 | Estadísticas con consultas nativas agregadas en un repositorio de solo lectura (`DashboardRepository`), no por Directories; la regla de saldo vive también en SQL y el IT comprueba que coincide con `GET /patients/{id}/account`. Se exponen por un único endpoint `GET /dashboard/summary` | tarea 020 |
 | D-26 | El dashboard con cifras de dinero es solo para ADMIN (el director). El odontólogo tendrá otra vista sin dinero (D-26b, pendiente) | tarea 020 |
 | D-27 | Catálogo de tratamientos y especialidades administrable por el ADMIN (CRUD por API, activar/desactivar, sin `DELETE`); columna opcional `treatment_catalog.specialty_id` solo para filtrar (no restringe al odontólogo); `code` inmutable; auditado con Envers | tarea 021 |

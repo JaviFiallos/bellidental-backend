@@ -4,6 +4,8 @@ import com.bellidental.identity.api.dto.AuthResponse;
 import com.bellidental.identity.api.dto.ChangePasswordRequest;
 import com.bellidental.identity.api.dto.CreateUserRequest;
 import com.bellidental.identity.api.dto.LoginRequest;
+import com.bellidental.identity.api.dto.MeResponse;
+import com.bellidental.identity.api.dto.UpdateUserRequest;
 import com.bellidental.identity.api.dto.UserResponse;
 import com.bellidental.shared.response.ApiResponse;
 import com.bellidental.support.TestcontainersConfiguration;
@@ -19,6 +21,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -102,6 +105,71 @@ class UserManagementIT {
         ResponseEntity<ApiResponse<UserResponse>> selfDeactivation = exchange(HttpMethod.POST,
                 "/api/v1/users/" + DIRECTOR_ID + "/deactivate", null, directorHeaders, new ParameterizedTypeReference<>() {});
         assertThat(selfDeactivation.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+    }
+
+    @Test
+    void updateUser_partialFields_changesOnlySentFieldsAndKeepsSession() {
+        HttpHeaders directorHeaders = headersFor("director@bellidental.local", SEED_PASSWORD);
+        String initialEmail = randomEmail();
+        String initialUsername = "user-" + UUID.randomUUID().toString().substring(0, 8);
+        String temporaryPassword = "Temporal.2026!";
+
+        ResponseEntity<ApiResponse<UserResponse>> created = exchange(HttpMethod.POST, "/api/v1/users",
+                new CreateUserRequest(initialEmail, initialUsername, temporaryPassword, Set.of("SECRETARIA")), directorHeaders,
+                new ParameterizedTypeReference<>() {});
+        assertThat(created.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        UUID userId = created.getBody().getData().id();
+
+        HttpHeaders userHeaders = headersFor(initialEmail, temporaryPassword);
+
+        String updatedUsername = "user-" + UUID.randomUUID().toString().substring(0, 8);
+        ResponseEntity<ApiResponse<UserResponse>> usernameUpdated = exchange(HttpMethod.PUT, "/api/v1/users/" + userId,
+                new UpdateUserRequest(null, updatedUsername), directorHeaders,
+                new ParameterizedTypeReference<>() {});
+        assertThat(usernameUpdated.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(usernameUpdated.getBody().getData().username()).isEqualTo(updatedUsername);
+        assertThat(usernameUpdated.getBody().getData().email()).isEqualTo(initialEmail);
+
+        String updatedEmail = randomEmail();
+        ResponseEntity<ApiResponse<UserResponse>> emailUpdated = exchange(HttpMethod.PUT, "/api/v1/users/" + userId,
+                new UpdateUserRequest(updatedEmail, null), directorHeaders,
+                new ParameterizedTypeReference<>() {});
+        assertThat(emailUpdated.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(emailUpdated.getBody().getData().email()).isEqualTo(updatedEmail);
+        assertThat(emailUpdated.getBody().getData().username()).isEqualTo(updatedUsername);
+
+        ResponseEntity<ApiResponse<MeResponse>> meResponse = exchange(HttpMethod.GET, "/api/v1/auth/me", null,
+                userHeaders, new ParameterizedTypeReference<>() {});
+        assertThat(meResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(meResponse.getBody().getData().email()).isEqualTo(updatedEmail);
+
+        assertThat(login(initialEmail, temporaryPassword).getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(login(updatedEmail, temporaryPassword).getStatusCode()).isEqualTo(HttpStatus.OK);
+    }
+
+    @Test
+    void updateUser_duplicateOrEmpty_returnsConflictOrBadRequest() {
+        HttpHeaders directorHeaders = headersFor("director@bellidental.local", SEED_PASSWORD);
+        String email = randomEmail();
+        String temporaryPassword = "Temporal.2026!";
+
+        ResponseEntity<ApiResponse<UserResponse>> created = exchange(HttpMethod.POST, "/api/v1/users",
+                new CreateUserRequest(email, null, temporaryPassword, Set.of("SECRETARIA")), directorHeaders,
+                new ParameterizedTypeReference<>() {});
+        assertThat(created.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        UUID userId = created.getBody().getData().id();
+
+        ResponseEntity<ApiResponse<UserResponse>> duplicate = exchange(HttpMethod.PUT, "/api/v1/users/" + userId,
+                new UpdateUserRequest(null, "secretaria"), directorHeaders,
+                new ParameterizedTypeReference<>() {});
+        assertThat(duplicate.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(duplicate.getBody().getMessage()).contains("El nombre de usuario 'secretaria' ya está en uso.");
+
+        ResponseEntity<ApiResponse<UserResponse>> emptyBody = exchange(HttpMethod.PUT, "/api/v1/users/" + userId,
+                Map.of(), directorHeaders,
+                new ParameterizedTypeReference<>() {});
+        assertThat(emptyBody.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(emptyBody.getBody().getMessage()).contains("Indique el email o el nombre de usuario a cambiar.");
     }
 
     private String randomEmail() {
