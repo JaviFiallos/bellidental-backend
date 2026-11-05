@@ -1,6 +1,7 @@
 package com.bellidental.appointments.application;
 
 import com.bellidental.appointments.AppointmentScheduler;
+import com.bellidental.appointments.EffectiveDay;
 import com.bellidental.appointments.AppointmentSummary;
 import com.bellidental.appointments.AvailableSlot;
 import com.bellidental.appointments.BookAppointmentCommand;
@@ -26,6 +27,7 @@ public class AppointmentSchedulerImpl implements AppointmentScheduler {
     private final AppointmentService appointmentService;
     private final AvailabilityService availabilityService;
     private final AppointmentRepository appointmentRepository;
+    private final ScheduleService scheduleService;
     private final ClinicClock clinicClock;
 
     @Override
@@ -71,6 +73,15 @@ public class AppointmentSchedulerImpl implements AppointmentScheduler {
     public List<AppointmentSummary> findActiveByPatient(UUID patientId) {
         return appointmentRepository.findActiveFutureByPatient(patientId, clinicClock.now()).stream()
                 .map(this::toSummary)
+                .toList();
+    }
+
+    @Override
+    public List<EffectiveDay> findEffectiveSchedule(UUID professionalId, LocalDate from, LocalDate to) {
+        return scheduleService.getEffectiveSchedule(professionalId, from, to).stream()
+                .map(day -> new EffectiveDay(day.date(), day.shifts().stream()
+                        .map(shift -> new EffectiveDay.Shift(shift.startTime(), shift.endTime()))
+                        .toList()))
                 .toList();
     }
 

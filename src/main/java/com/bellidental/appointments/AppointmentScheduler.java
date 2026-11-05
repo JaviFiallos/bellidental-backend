@@ -24,4 +24,6 @@ public interface AppointmentScheduler {
     void markAttended(UUID appointmentId);
 
     List<AppointmentSummary> findActiveByPatient(UUID patientId);
+
+    List<EffectiveDay> findEffectiveSchedule(UUID professionalId, LocalDate from, LocalDate to);
 }
