@@ -179,3 +179,8 @@ Estado: APROBADO
 Correcciones mínimas del revisor: `docs/OPERATIONS.md` — el título de "Configurar Google Drive" remitía a una
 sección "Prueba manual" de `DEPLOY-SETUP.md` que no existe; se quitó esa referencia y se añadió el aviso del token OAuth
 en modo *Testing* (7 días), que venía en la Prueba manual de la tarea.
+
+**Prueba manual (2026-11-05, VPS):** `backup.sh` → `bellidental-20261105-0314.dump 272K drive=OMITIDO OK` sin
+remoto; con `BACKUP_RCLONE_REMOTE=bellidental-crypt:` → `bellidental-20261105-1301.dump 272K drive=OK OK` y
+`rclone ls` lista el dump en Drive (cifrado en `gdrive:bellidental-backups`). Pendiente: `client_id` propio de Google
+(ver `docs/OPERATIONS.md` §Configurar Google Drive).

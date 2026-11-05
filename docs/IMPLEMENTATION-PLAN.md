@@ -660,6 +660,7 @@ quitar RECORD_* de ADMIN en la semilla (hoy ADMIN = todos).
 | D-30 | Medicamentos y presets administrables por el odontólogo (y ADMIN) con RECORD_CREATE; catálogo compartido, sin `professional_id` (el autor queda en Envers); sin `DELETE` (`active`); un medicamento ya usado en recetas no se edita; posología en texto libre | tarea 028 |
 | D-31 | `GET /patients/list` de solo lectura con `PATIENT_READ`; el saldo (`pendingBalance`) solo con `BILLING_READ` (si no, `null`; `withBalance=true` → 403); saldo calculado en SQL igual que `AccountService`; rango máx. 366 días | tarea 029 |
 | D-32 | Ortodoncia con tratamiento completo (monto acordado D8080, $1200) y controles a $0 (D8670) con diagnóstico Z46.4; especialidad Ortodoncia (15 min); saldo refleja cuánto falta pagar con abonos libres | tarea 030 |
+| D-33 | Recordatorios solo a pacientes con consentimiento vigente aceptado en el bot (LOPDP); recepción no registra consentimiento, así que un paciente agendado en recepción que nunca escribió al bot no recibe recordatorio. Registrar el consentimiento en recepción queda como recomendación | tareas 017a, 017b |
 
 **Pendientes:**
 | ID | Decisión | Propuesta | Afecta |

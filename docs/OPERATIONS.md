@@ -48,6 +48,17 @@ docker compose exec backup sh -c 'rclone ls "$BACKUP_RCLONE_REMOTE"'
 3. En `.env`: `BACKUP_RCLONE_REMOTE=bellidental-crypt:` y después `docker compose up -d backup`.
 4. Comprobar: `docker compose exec backup backup.sh` → la última línea debe terminar en `drive=OK OK`.
 
+**Estado (2026-11-05):** configurado y probado (`drive=OK OK`; `rclone ls` lista el dump descifrado). El remoto
+`gdrive` usa el `client_id` compartido de rclone, que rclone anuncia como retirado durante 2026. **Pendiente:** crear
+un `client_id` propio en Google Cloud (cuenta de la clínica: proyecto, habilitar Google Drive API, consentimiento
+externo con scope `drive.file` publicado **En producción**, cliente *App de escritorio*) y en la laptop:
+```bash
+rclone config update gdrive client_id=<ID> client_secret=<SECRETO>
+rclone config reconnect gdrive:
+```
+Volver a copiar `rclone.conf` al VPS y quitar el acceso de la app "rclone" en myaccount.google.com/permissions.
+Si `docker compose logs backup` muestra `drive=ERROR` antes de hacerlo, es esta causa; la copia local sigue.
+
 ## Restaurar
 Desde una copia local (parar `backend`, `agent` y `backup`, restaurar y levantarlos de nuevo):
 ```bash
