@@ -58,6 +58,24 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      - id: backup_meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/javifiallos/bellidental-backup
+          tags: |
+            type=raw,value=latest
+            type=sha,prefix=sha-
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: deploy/backup
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.backup_meta.outputs.tags }}
+          labels: ${{ steps.backup_meta.outputs.labels }}
+          cache-from: type=gha,scope=backup
+          cache-to: type=gha,mode=max,scope=backup
+
   deploy:
     needs: image
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
@@ -83,7 +101,7 @@ jobs:
         env:
           VPS_USER: ${{ secrets.VPS_USER }}
           VPS_HOST: ${{ secrets.VPS_HOST }}
-        run: scp deploy/docker-compose.yml deploy/Caddyfile "$VPS_USER@$VPS_HOST:/opt/bellidental/"
+        run: scp deploy/docker-compose.yml deploy/Caddyfile deploy/restore.sh "$VPS_USER@$VPS_HOST:/opt/bellidental/"
 
       - name: Desplegar en el VPS
         env:
@@ -101,9 +119,10 @@ jobs:
             ls -1t backups/predeploy-*.dump | tail -n +6 | xargs -r rm --
           fi
 
-          docker compose pull backend
+          chmod +x restore.sh
+          docker compose pull backend backup
           # el agente lo levanta su propio pipeline (018b)
-          docker compose up -d --remove-orphans db backend frontend caddy
+          docker compose up -d --remove-orphans db backend frontend caddy backup
           docker compose exec -T caddy caddy reload --config /etc/caddy/Caddyfile
 
           backend_id="$(docker compose ps -q backend)"

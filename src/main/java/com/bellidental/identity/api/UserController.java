@@ -58,7 +58,7 @@ public class UserController {
 
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Cambiar el email de un usuario")
+    @Operation(summary = "Cambiar email y/o nombre de usuario")
     public ResponseEntity<ApiResponse<UserResponse>> update(
             @PathVariable UUID id,
             @Valid @RequestBody UpdateUserRequest request

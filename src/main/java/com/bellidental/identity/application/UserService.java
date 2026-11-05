@@ -28,7 +28,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
- * Gestión de cuentas por el ADMIN (D-24). El ADMIN no se crea ni se modifica por API.
+ * Gestión de cuentas por el ADMIN (D-24). El ADMIN no se crea por API ni cambia sus roles.
  */
 @Service
 @RequiredArgsConstructor
@@ -64,16 +64,12 @@ public class UserService {
         String email = normalizeEmail(rawEmail);
         String username = rawUsername == null || rawUsername.isBlank()
                 ? PasswordRules.usernameFromEmail(email)
-                : rawUsername.trim();
+                : normalizeUsername(rawUsername);
         if (username.isEmpty()) {
             throw new InvalidInputException("No se pudo derivar un nombre de usuario del email; indíquelo.");
         }
-        if (userRepository.existsByEmail(email)) {
-            throw new BusinessException("El email '" + email + "' ya está en uso.");
-        }
-        if (userRepository.existsByUsername(username)) {
-            throw new BusinessException("El nombre de usuario '" + username + "' ya está en uso.");
-        }
+        checkEmailAvailable(email);
+        checkUsernameAvailable(username);
         PasswordRules.validate(temporaryPassword);
         List<Role> roles = resolveAssignableRoles(roleCodes);
 
@@ -89,13 +85,33 @@ public class UserService {
 
     @Transactional
     public UserResponse update(UUID id, UpdateUserRequest request) {
+        if (request == null || (request.email() == null && request.username() == null)) {
+            throw new InvalidInputException("Indique el email o el nombre de usuario a cambiar.");
+        }
+        if (request.email() != null && request.email().isBlank()) {
+            throw new InvalidInputException("El email no puede estar en blanco.");
+        }
+        if (request.username() != null && request.username().isBlank()) {
+            throw new InvalidInputException("El nombre de usuario no puede estar en blanco.");
+        }
+
         User user = findActiveUserOrThrow(id);
         requireNotSystem(user);
-        String email = normalizeEmail(request.email());
-        if (!email.equals(user.getEmail()) && userRepository.existsByEmail(email)) {
-            throw new BusinessException("El email '" + email + "' ya está en uso.");
+
+        if (request.email() != null) {
+            String newEmail = normalizeEmail(request.email());
+            if (!newEmail.equals(user.getEmail())) {
+                checkEmailAvailable(newEmail);
+                user.setEmail(newEmail);
+            }
         }
-        user.setEmail(email);
+        if (request.username() != null) {
+            String newUsername = normalizeUsername(request.username());
+            if (!newUsername.equals(user.getUsername())) {
+                checkUsernameAvailable(newUsername);
+                user.setUsername(newUsername);
+            }
+        }
         return UserResponse.from(userRepository.save(user));
     }
 
@@ -187,7 +203,23 @@ public class UserService {
                 .collect(Collectors.toSet());
     }
 
+    private void checkEmailAvailable(String email) {
+        if (userRepository.existsByEmail(email)) {
+            throw new BusinessException("El email '" + email + "' ya está en uso.");
+        }
+    }
+
+    private void checkUsernameAvailable(String username) {
+        if (userRepository.existsByUsername(username)) {
+            throw new BusinessException("El nombre de usuario '" + username + "' ya está en uso.");
+        }
+    }
+
     private String normalizeEmail(String email) {
         return email.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private String normalizeUsername(String username) {
+        return username.trim();
     }
 }
