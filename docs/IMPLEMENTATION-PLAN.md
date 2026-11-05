@@ -123,6 +123,7 @@ tests de reglas puras). La columna `*IT` y los tests listados en §4 son orienta
 | 030 | Catálogo de ortodoncia: Z46.4, especialidad Ortodoncia (15 min), D8080 y D8670 (G-17 del frontend, D-32) | V22 | 007, 010a, 021 | Icd10SearchIT + TreatmentFlowIT (casos nuevos) |
 | 031 | Bot: /bot/specialties solo con especialidades que tienen profesionales activos | — | 015a | BotAvailabilityIT (caso nuevo) |
 | 032 | El director edita email y nombre de usuario de una cuenta (D-24b) | — | 019 | UserManagementIT (casos nuevos) |
+| 033 | Bot: horario semanal de profesionales (/bot/schedule) | — | 016a | BotAvailabilityIT (casos nuevos) |
 
 (007 y 008 van separadas: CIE-10 en `V7__icd10_catalog.sql` y atención en `V7_1__encounters.sql`, para no renumerar 009+.)
 (El historial inmediato `GET /patients/{id}/clinical-summary` de §4.4 sale de la 008: es la tarea 011c.)
@@ -472,6 +473,7 @@ Hay dos tipos de estado: los de la **cita** (PENDING, CONFIRMED…) siguen en Ja
 | `GET /bot/availability?specialtyId&professionalId?&date` | huecos del día (máx. 10) | 016a |
 | `GET /bot/urgent-slots` | 3 primeros huecos de hoy o mañana en la especialidad de urgencias (`noSlotsToday` = fuera de horario) | 016a |
 | `GET /bot/appointments?phone&patientId` | citas activas futuras del paciente | 016a |
+| `GET /bot/schedule?from&to&specialtyId?&professionalId?` | horario efectivo por día de los profesionales activos, máx. 14 días | 033 |
 | `POST /bot/appointments` `{phone, patientId, specialtyId, professionalId, startAt}` | crea `PENDING`, `source=BOT`; 409 `APPOINTMENT_OVERLAP` o `BOT_LIMIT_REACHED` | 016b |
 | `POST /bot/appointments/{id}/reschedule` `{phone, startAt}` | reprograma; 409 `BOT_TOO_LATE` a menos de 2 h | 016b |
 | `POST /bot/appointments/{id}/cancel` · `/confirm` `{phone}` | cancelar (D-10) o confirmar | 016b |

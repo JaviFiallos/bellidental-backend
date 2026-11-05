@@ -2,6 +2,9 @@ package com.bellidental.bot;
 
 import com.bellidental.appointments.api.dto.ScheduleRequest;
 import com.bellidental.bot.api.dto.BotAppointmentResponse;
+import com.bellidental.bot.api.dto.BotProfessionalScheduleResponse;
+import com.bellidental.bot.api.dto.BotProfessionalScheduleResponse.ScheduleDay;
+import com.bellidental.bot.api.dto.BotProfessionalScheduleResponse.ScheduleShift;
 import com.bellidental.bot.api.dto.BotSlotResponse;
 import com.bellidental.bot.api.dto.BotSpecialtyResponse;
 import com.bellidental.bot.api.dto.UrgentSlotsResponse;
@@ -225,5 +228,48 @@ class BotAvailabilityIT {
         );
         assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
         assertThat(resp.getBody().getMessage()).isEqualTo("Paciente no encontrado.");
+    }
+
+    @Test
+    void schedule_rangeFromTodayToSixDaysAhead_returnsSevenDaysWithWeeklyShifts() {
+        LocalDate weeklyDay = today.plusDays(3);
+        ScheduleRequest weekly = new ScheduleRequest(
+                (short) weeklyDay.getDayOfWeek().getValue(), null, LocalTime.of(8, 0), LocalTime.of(20, 0), true);
+        ResponseEntity<Void> created = restTemplate.exchange(
+                "/api/v1/professionals/" + professionalId + "/schedules",
+                HttpMethod.POST,
+                new HttpEntity<>(weekly, staffHeaders),
+                Void.class
+        );
+        assertThat(created.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+
+        ResponseEntity<ApiResponse<List<BotProfessionalScheduleResponse>>> resp = restTemplate.exchange(
+                "/api/v1/bot/schedule?from=" + today + "&to=" + today.plusDays(6) + "&professionalId=" + professionalId,
+                HttpMethod.GET,
+                new HttpEntity<>(botHeaders()),
+                new ParameterizedTypeReference<>() {}
+        );
+        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.OK);
+        List<BotProfessionalScheduleResponse> schedules = resp.getBody().getData();
+        assertThat(schedules).hasSize(1);
+        BotProfessionalScheduleResponse schedule = schedules.get(0);
+        assertThat(schedule.professionalId()).isEqualTo(professionalId);
+        assertThat(schedule.days()).hasSize(7);
+        assertThat(schedule.days().get(0).date()).isEqualTo(today);
+        ScheduleDay weeklyDayResponse = schedule.days().get(3);
+        assertThat(weeklyDayResponse.date()).isEqualTo(weeklyDay);
+        assertThat(weeklyDayResponse.shifts()).containsExactly(new ScheduleShift("08:00", "20:00"));
+    }
+
+    @Test
+    void schedule_toBeyondTodayPlusThirteen_returns400() {
+        ResponseEntity<ApiResponse<List<BotProfessionalScheduleResponse>>> resp = restTemplate.exchange(
+                "/api/v1/bot/schedule?from=" + today + "&to=" + today.plusDays(14),
+                HttpMethod.GET,
+                new HttpEntity<>(botHeaders()),
+                new ParameterizedTypeReference<>() {}
+        );
+        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(resp.getBody().getMessage()).isEqualTo("Rango de fechas no permitido.");
     }
 }

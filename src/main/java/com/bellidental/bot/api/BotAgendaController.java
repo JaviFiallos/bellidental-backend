@@ -4,6 +4,7 @@ import com.bellidental.bot.api.dto.BotAppointmentResponse;
 import com.bellidental.bot.api.dto.BotBookRequest;
 import com.bellidental.bot.api.dto.BotPhoneRequest;
 import com.bellidental.bot.api.dto.BotProfessionalResponse;
+import com.bellidental.bot.api.dto.BotProfessionalScheduleResponse;
 import com.bellidental.bot.api.dto.BotRescheduleRequest;
 import com.bellidental.bot.api.dto.BotSlotResponse;
 import com.bellidental.bot.api.dto.BotSpecialtyResponse;
@@ -48,6 +49,16 @@ public class BotAgendaController {
             @RequestParam Long specialtyId
     ) {
         return ResponseEntity.ok(ApiResponse.ok(botAvailabilityService.getActiveProfessionalsBySpecialty(specialtyId)));
+    }
+
+    @GetMapping("/schedule")
+    public ResponseEntity<ApiResponse<List<BotProfessionalScheduleResponse>>> getSchedule(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(required = false) Long specialtyId,
+            @RequestParam(required = false) UUID professionalId
+    ) {
+        return ResponseEntity.ok(ApiResponse.ok(botAvailabilityService.getSchedule(from, to, specialtyId, professionalId)));
     }
 
     @GetMapping("/availability/days")
