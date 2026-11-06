@@ -117,9 +117,10 @@ public class PrescriptionPdfService {
         mainTable.getDefaultCell().setBorder(Rectangle.NO_BORDER);
 
         // Fila 0: Cabeceras (con título según la mitad)
-        mainTable.addCell(wrapInCell(createHalfHeader(professional, issueDate, "RECETA", half)));
+        String prescriptionNumber = prescription.prescriptionNumber();
+        mainTable.addCell(wrapInCell(createHalfHeader(professional, issueDate, prescriptionNumber, "RECETA", half)));
         mainTable.addCell(createGutterCell());
-        mainTable.addCell(wrapInCell(createHalfHeader(professional, issueDate, "INDICACIONES", half)));
+        mainTable.addCell(wrapInCell(createHalfHeader(professional, issueDate, prescriptionNumber, "INDICACIONES", half)));
 
         // Fila 1: Línea dorada
         mainTable.addCell(wrapInCell(createAccentLine(half)));
@@ -234,7 +235,8 @@ public class PrescriptionPdfService {
         document.add(mainTable);
     }
 
-    private PdfPTable createHalfHeader(ProfessionalSummary professional, LocalDate issueDate, String title, float halfWidth)
+    private PdfPTable createHalfHeader(ProfessionalSummary professional, LocalDate issueDate, String prescriptionNumber,
+                                       String title, float halfWidth)
             throws BadElementException, IOException {
         PdfPTable headerTable = new PdfPTable(new float[]{52f, 227f, 100f});
         headerTable.setTotalWidth(halfWidth);
@@ -309,6 +311,10 @@ public class PrescriptionPdfService {
         Paragraph confidential = new Paragraph("CONFIDENCIAL", PrescriptionPdfPalette.FONT_CONFIDENTIAL);
         confidential.setAlignment(Element.ALIGN_RIGHT);
         rightCell.addElement(confidential);
+
+        Paragraph number = new Paragraph("N.º " + prescriptionNumber, PrescriptionPdfPalette.FONT_PRESCRIPTION_NUMBER);
+        number.setAlignment(Element.ALIGN_RIGHT);
+        rightCell.addElement(number);
 
         headerTable.addCell(rightCell);
         return headerTable;

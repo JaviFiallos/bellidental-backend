@@ -46,6 +46,9 @@ public class Prescription {
     @Column(nullable = false, length = 10)
     private PrescriptionStatus status;
 
+    @Column(name = "prescription_number", length = 30, unique = true)
+    private String prescriptionNumber;
+
     @Column(name = "voided_at")
     private OffsetDateTime voidedAt;
 

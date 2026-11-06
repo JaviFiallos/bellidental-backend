@@ -101,8 +101,10 @@ class PrescriptionPdfIT {
         PrescriptionItemRequest item = new PrescriptionItemRequest(medicationId, null, "1 cápsula", "cada 8 horas", "7 días", "21 cápsulas", "Tomar con alimentos");
         PrescriptionResponse created = createPrescription(encounterId, new PrescriptionRequest(diagnosisId, "Reposo relativo", List.of(item)));
 
-        exchange(HttpMethod.POST, "/api/v1/prescriptions/" + created.id() + "/issue", null, odontologaHeaders,
+        ResponseEntity<ApiResponse<PrescriptionResponse>> issueResponse = exchange(
+                HttpMethod.POST, "/api/v1/prescriptions/" + created.id() + "/issue", null, odontologaHeaders,
                 new ParameterizedTypeReference<ApiResponse<PrescriptionResponse>>() {});
+        String prescriptionNumber = issueResponse.getBody().getData().prescriptionNumber();
 
         ResponseEntity<byte[]> response = restTemplate.exchange(
                 "/api/v1/prescriptions/" + created.id() + "/pdf", HttpMethod.GET,
@@ -122,6 +124,7 @@ class PrescriptionPdfIT {
         }
 
         String text = extractText(pdf);
+        assertThat(countOccurrences(text, prescriptionNumber)).isGreaterThanOrEqualTo(2);
         assertThat(text).contains("CONFIDENCIAL");
         assertThat(text).contains(patient.documentNumber());
         assertThat(text).contains("Presente esta receta en su próxima consulta");

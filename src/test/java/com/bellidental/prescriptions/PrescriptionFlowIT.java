@@ -102,6 +102,7 @@ class PrescriptionFlowIT {
         PrescriptionResponse created = createPrescription(encounterId, new PrescriptionRequest(diagnosisId, null, List.of(item)));
 
         assertThat(created.status()).isEqualTo(PrescriptionStatus.DRAFT);
+        assertThat(created.prescriptionNumber()).isNull();
         PrescriptionItemResponse createdItem = created.items().getFirst();
         assertThat(createdItem.dose()).isEqualTo(preset.dose());
         assertThat(createdItem.frequency()).isEqualTo(preset.frequency());
@@ -114,6 +115,7 @@ class PrescriptionFlowIT {
 
         assertThat(issueResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(issueResponse.getBody().getData().status()).isEqualTo(PrescriptionStatus.ISSUED);
+        assertThat(issueResponse.getBody().getData().prescriptionNumber()).matches("^R-\\d{6}$");
     }
 
     @Test

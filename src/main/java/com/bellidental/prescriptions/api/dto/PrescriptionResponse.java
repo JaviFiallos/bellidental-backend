@@ -13,6 +13,7 @@ public record PrescriptionResponse(
         String icd10Code,
         String icd10Description,
         PrescriptionStatus status,
+        String prescriptionNumber,
         OffsetDateTime prescribedAt,
         String generalInstructions,
         boolean voided,

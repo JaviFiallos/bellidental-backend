@@ -3,6 +3,7 @@ package com.bellidental.persistence.repository;
 import com.bellidental.persistence.entity.Prescription;
 import com.bellidental.shared.enums.PrescriptionStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import java.util.Collection;
@@ -11,6 +12,9 @@ import java.util.UUID;
 
 @Repository
 public interface PrescriptionRepository extends JpaRepository<Prescription, UUID> {
+
+    @Query(value = "SELECT nextval('prescription_number_seq')", nativeQuery = true)
+    long nextPrescriptionNumber();
 
     List<Prescription> findByEncounterIdAndVoidedAtIsNullOrderByCreatedAtAsc(UUID encounterId);
 

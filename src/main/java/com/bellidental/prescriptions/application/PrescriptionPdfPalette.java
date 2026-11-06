@@ -35,6 +35,7 @@ public final class PrescriptionPdfPalette {
     public static final Font FONT_RECETA_TITLE = new Font(Font.HELVETICA, 14, Font.BOLD, BLUE_900);
     public static final Font FONT_INDICACIONES_TITLE = new Font(Font.HELVETICA, 11, Font.BOLD, BLUE_900);
     public static final Font FONT_CONFIDENTIAL = new Font(Font.HELVETICA, 8, Font.BOLD, CORAL_700);
+    public static final Font FONT_PRESCRIPTION_NUMBER = new Font(Font.HELVETICA, 9, Font.BOLD, BLUE_800);
 
     // Fonts - Patient
     public static final Font FONT_FIELD_LABEL = new Font(Font.HELVETICA, 8, Font.BOLD, SLATE_600);

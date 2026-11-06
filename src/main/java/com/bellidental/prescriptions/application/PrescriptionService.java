@@ -14,6 +14,7 @@ import com.bellidental.prescriptions.api.dto.PrescriptionItemRequest;
 import com.bellidental.prescriptions.api.dto.PrescriptionItemResponse;
 import com.bellidental.prescriptions.api.dto.PrescriptionRequest;
 import com.bellidental.prescriptions.api.dto.PrescriptionResponse;
+import com.bellidental.prescriptions.domain.PrescriptionNumber;
 import com.bellidental.prescriptions.domain.PrescriptionRules;
 import com.bellidental.shared.enums.PrescriptionStatus;
 import com.bellidental.shared.exception.BusinessException;
@@ -83,6 +84,7 @@ public class PrescriptionService {
         long itemCount = prescriptionItemRepository.countByPrescriptionId(prescriptionId);
         PrescriptionRules.checkCanIssue(prescription.getStatus(), prescription.getVoidedAt() != null, itemCount);
 
+        prescription.setPrescriptionNumber(PrescriptionNumber.format(prescriptionRepository.nextPrescriptionNumber()));
         prescription.setStatus(PrescriptionStatus.ISSUED);
         prescription.setPrescribedAt(clinicClock.now());
         return toResponse(prescriptionRepository.save(prescription));
@@ -194,6 +196,7 @@ public class PrescriptionService {
                 diagnosis != null ? diagnosis.icd10Code() : null,
                 diagnosis != null ? diagnosis.icd10Description() : null,
                 prescription.getStatus(),
+                prescription.getPrescriptionNumber(),
                 prescription.getPrescribedAt(),
                 prescription.getGeneralInstructions(),
                 prescription.getVoidedAt() != null,

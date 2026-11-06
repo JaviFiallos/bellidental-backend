@@ -309,6 +309,7 @@ Table prescriptions {
   prescribed_at timestamptz [not null, default: `now()`]
   general_instructions text
   status varchar(10) [not null, default: 'DRAFT', note: 'DRAFT, ISSUED']
+  prescription_number varchar(30) [unique, note: 'R-000001; se asigna al emitir (D-35)']
   voided_at timestamptz
   created_at timestamptz [not null, default: `now()`]
   indexes { encounter_id }
