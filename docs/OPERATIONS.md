@@ -73,7 +73,15 @@ docker compose run --rm backup sh -c 'rclone copy "$BACKUP_RCLONE_REMOTE"bellide
 Si `restore.sh` falla, los servicios quedan detenidos: revisar el error y ejecutar `docker compose up -d backend agent backup`.
 
 ## Exportar
-Exportación de datos para la clínica: tarea 018d (pendiente).
+Exporta todas las tablas en un ZIP abierto: `README.txt` (fecha, versión de Flyway, número de tablas) y un CSV por
+tabla (UTF-8 con cabecera, incluidas las de auditoría `*_aud`). `password_hash` sale vacío. Solo lo puede descargar
+un `ADMIN`. Desde el navegador: Gestión → "Exportar datos" (frontend 029). Alternativa por línea de comandos:
+```bash
+TOKEN=$(curl -s https://app.<dominio>/api/v1/auth/login -H 'Content-Type: application/json' \
+  -d '{"email":"director@bellidental.local","password":"…"}' | jq -r .data.accessToken)
+curl -fOJ -H "Authorization: Bearer $TOKEN" https://app.<dominio>/api/v1/admin/export
+```
+El nombre del archivo es `bellidental-export-<yyyyMMdd-HHmm>.zip` (hora de la clínica). Para un dump SQL usar los respaldos (018c).
 
 ## Rotar secretos
 Cambiar el valor en `.env` y levantar los servicios que lo usan:

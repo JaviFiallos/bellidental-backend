@@ -574,7 +574,8 @@ Proveedor: Contabo Cloud VPS 6 GB, Ubuntu 24.04; imágenes en GHCR; CI/CD con Gi
   `Caddyfile` con los dominios de §1 y el bloqueo de `/api/v1/bot/**`.
 - Servicio `backup` (imagen postgres:16 + cron): `pg_dump -Fc` diario, retención 30 días en el VPS y copia cifrada
   a Google Drive con `rclone` (D-18). Script `scripts/restore.sh` documentado, sin prueba de restauración.
-- `GET /admin/export` (ADMIN): ZIP con CSV por tabla (incluye `*_aud`), generado en streaming.
+- `GET /api/v1/admin/export` (ADMIN): ZIP con `README.txt` y un CSV por tabla (incluye `*_aud`; `password_hash` vacío),
+  generado en streaming desde una única transacción REPEATABLE READ (módulo `admin`, tarea 018d).
 - Doc `docs/OPERATIONS.md`: instalar en el VPS, dominio y HTTPS, firewall, respaldar, restaurar, exportar, rotar
   secretos (JWT, `X-Bot-Key`, token de WhatsApp).
 Unit: escritor CSV (escapes, UTF-8, cabeceras).
