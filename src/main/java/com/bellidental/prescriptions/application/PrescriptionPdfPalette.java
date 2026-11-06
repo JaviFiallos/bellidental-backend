@@ -33,6 +33,7 @@ public final class PrescriptionPdfPalette {
     public static final Font FONT_DATE_HEADER = new Font(Font.HELVETICA, 7, Font.BOLD, WHITE);
     public static final Font FONT_DATE_VALUE = new Font(Font.HELVETICA, 9, Font.BOLD, SLATE_800);
     public static final Font FONT_RECETA_TITLE = new Font(Font.HELVETICA, 14, Font.BOLD, BLUE_900);
+    public static final Font FONT_INDICACIONES_TITLE = new Font(Font.HELVETICA, 11, Font.BOLD, BLUE_900);
     public static final Font FONT_CONFIDENTIAL = new Font(Font.HELVETICA, 8, Font.BOLD, CORAL_700);
 
     // Fonts - Patient
@@ -41,7 +42,8 @@ public final class PrescriptionPdfPalette {
     public static final Font FONT_REMINDER = new Font(Font.HELVETICA, 9, Font.ITALIC, SLATE_500);
 
     // Fonts - Body
-    public static final Font FONT_RP = new Font(Font.HELVETICA, 16, Font.BOLD, BLUE_800);
+    public static final Font FONT_RP = new Font(Font.HELVETICA, 14, Font.BOLD, BLUE_800);
+    public static final Font FONT_INDICACIONES_SECTION = new Font(Font.HELVETICA, 14, Font.BOLD, BLUE_800);
     public static final Font FONT_MEDICATION_TITLE = new Font(Font.HELVETICA, 11, Font.BOLD, BLUE_900);
     public static final Font FONT_MEDICATION_BODY = new Font(Font.HELVETICA, 10, Font.NORMAL, SLATE_800);
     public static final Font FONT_INSTRUCTIONS_TITLE = new Font(Font.HELVETICA, 9, Font.BOLD, BLUE_800);
@@ -58,5 +60,5 @@ public final class PrescriptionPdfPalette {
     public static final Font FONT_SERVICES_LIST = new Font(Font.HELVETICA, 9, Font.NORMAL, SLATE_600);
 
     // Fonts - Footer Contact
-    public static final Font FONT_FOOTER_CHANNEL = new Font(Font.HELVETICA, 8, Font.NORMAL, WHITE);
+    public static final Font FONT_FOOTER_CHANNEL = new Font(Font.HELVETICA, 7.5f, Font.NORMAL, WHITE);
 }

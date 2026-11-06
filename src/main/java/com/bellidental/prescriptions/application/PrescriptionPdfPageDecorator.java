@@ -21,7 +21,7 @@ import java.util.List;
 public class PrescriptionPdfPageDecorator extends PdfPageEventHelper {
 
     private static final float FOOTER_HEIGHT = 40f;
-    private static final float WATERMARK_SIZE = 300f;
+    private static final float WATERMARK_SIZE = 200f;
     private static final float WATERMARK_OPACITY = 0.06f;
 
     private final ClinicProperties clinicProperties;
@@ -35,6 +35,7 @@ public class PrescriptionPdfPageDecorator extends PdfPageEventHelper {
     @Override
     public void onEndPage(PdfWriter writer, Document document) {
         drawWatermark(writer, document);
+        drawCutLine(writer, document);
         drawContactBar(writer, document);
     }
 
@@ -46,16 +47,42 @@ public class PrescriptionPdfPageDecorator extends PdfPageEventHelper {
             gstate.setFillOpacity(WATERMARK_OPACITY);
             under.setGState(gstate);
 
-            float x = document.left() + (document.right() - document.left() - WATERMARK_SIZE) / 2f;
+            float width = document.getPageSize().getWidth();
+            float halfWidth = width / 2f;
+            float xLeft = (halfWidth - WATERMARK_SIZE) / 2f;
+            float xRight = halfWidth + (halfWidth - WATERMARK_SIZE) / 2f;
             float y = document.bottom() + (document.top() - document.bottom() - WATERMARK_SIZE) / 2f;
 
-            Image watermark = Image.getInstance(images.logo());
-            watermark.scaleAbsolute(WATERMARK_SIZE, WATERMARK_SIZE);
-            watermark.setAbsolutePosition(x, y);
-            under.addImage(watermark);
+            Image watermarkLeft = Image.getInstance(images.logo());
+            watermarkLeft.scaleAbsolute(WATERMARK_SIZE, WATERMARK_SIZE);
+            watermarkLeft.setAbsolutePosition(xLeft, y);
+            under.addImage(watermarkLeft);
+
+            Image watermarkRight = Image.getInstance(images.logo());
+            watermarkRight.scaleAbsolute(WATERMARK_SIZE, WATERMARK_SIZE);
+            watermarkRight.setAbsolutePosition(xRight, y);
+            under.addImage(watermarkRight);
+
             under.restoreState();
         } catch (Exception e) {
             throw new IllegalStateException("No se pudo dibujar la marca de agua en el PDF", e);
+        }
+    }
+
+    private void drawCutLine(PdfWriter writer, Document document) {
+        try {
+            PdfContentByte cb = writer.getDirectContent();
+            cb.saveState();
+            cb.setColorStroke(PrescriptionPdfPalette.BLUE_200);
+            cb.setLineWidth(1f);
+            cb.setLineDash(4f, 4f, 0f);
+            float x = document.getPageSize().getWidth() / 2f;
+            cb.moveTo(x, document.top());
+            cb.lineTo(x, FOOTER_HEIGHT);
+            cb.stroke();
+            cb.restoreState();
+        } catch (Exception e) {
+            throw new IllegalStateException("No se pudo dibujar la línea de corte en el PDF", e);
         }
     }
 
@@ -82,39 +109,53 @@ public class PrescriptionPdfPageDecorator extends PdfPageEventHelper {
                 return;
             }
 
-            PdfPTable table = new PdfPTable(activeChannels.size());
-            float margin = 20f;
-            table.setTotalWidth(width - (margin * 2));
-            table.setLockedWidth(true);
+            float halfWidth = width / 2f;
+            float margin = 10f;
+            float tableWidth = halfWidth - (margin * 2);
 
-            for (ChannelInfo channel : activeChannels) {
-                table.addCell(createChannelCell(channel));
-            }
-
-            float tableHeight = table.getTotalHeight();
+            PdfPTable leftTable = createChannelsTable(activeChannels, tableWidth);
+            float tableHeight = leftTable.getTotalHeight();
             float y = (FOOTER_HEIGHT + tableHeight) / 2f;
-            table.writeSelectedRows(0, -1, margin, y, cb);
+            leftTable.writeSelectedRows(0, -1, margin, y, cb);
+
+            PdfPTable rightTable = createChannelsTable(activeChannels, tableWidth);
+            rightTable.writeSelectedRows(0, -1, halfWidth + margin, y, cb);
         } catch (Exception e) {
             throw new IllegalStateException("No se pudo dibujar la franja de contacto en el PDF", e);
         }
     }
 
+    private PdfPTable createChannelsTable(List<ChannelInfo> channels, float tableWidth) throws BadElementException, IOException {
+        float[] relativeWidths = new float[channels.size()];
+        for (int i = 0; i < channels.size(); i++) {
+            relativeWidths[i] = channels.get(i).text.length() + 4f;
+        }
+        PdfPTable table = new PdfPTable(relativeWidths);
+        table.setTotalWidth(tableWidth);
+        table.setLockedWidth(true);
+        for (ChannelInfo channel : channels) {
+            table.addCell(createChannelCell(channel));
+        }
+        return table;
+    }
+
     private PdfPCell createChannelCell(ChannelInfo channel) throws BadElementException, IOException {
         Image icon = Image.getInstance(channel.iconBytes);
-        icon.scaleAbsolute(14f, 14f);
+        icon.scaleAbsolute(11f, 11f);
 
         Phrase phrase = new Phrase();
-        phrase.add(new Chunk(icon, 0, -4f));
+        phrase.add(new Chunk(icon, 0, -2f));
         phrase.add(new Chunk(" " + channel.text, PrescriptionPdfPalette.FONT_FOOTER_CHANNEL));
 
         PdfPCell cell = new PdfPCell(phrase);
         cell.setBorder(Rectangle.NO_BORDER);
         cell.setVerticalAlignment(Element.ALIGN_MIDDLE);
         cell.setHorizontalAlignment(Element.ALIGN_CENTER);
+        cell.setNoWrap(true);
         cell.setUseAscender(true);
         cell.setUseDescender(true);
-        cell.setPaddingTop(2f);
-        cell.setPaddingBottom(2f);
+        cell.setPaddingTop(1f);
+        cell.setPaddingBottom(1f);
         return cell;
     }
 

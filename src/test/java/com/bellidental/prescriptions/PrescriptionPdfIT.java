@@ -22,6 +22,7 @@ import com.bellidental.shared.enums.DiagnosisCertainty;
 import com.bellidental.shared.enums.DocumentType;
 import com.bellidental.shared.response.ApiResponse;
 import com.bellidental.support.TestcontainersConfiguration;
+import com.lowagie.text.Rectangle;
 import com.lowagie.text.pdf.PdfReader;
 import com.lowagie.text.pdf.parser.PdfTextExtractor;
 import org.junit.jupiter.api.BeforeEach;
@@ -111,6 +112,15 @@ class PrescriptionPdfIT {
         assertThat(response.getHeaders().getContentType()).isEqualTo(MediaType.APPLICATION_PDF);
         byte[] pdf = response.getBody();
         assertThat(new String(pdf, 0, 4, StandardCharsets.US_ASCII)).isEqualTo("%PDF");
+
+        PdfReader reader = new PdfReader(pdf);
+        try {
+            Rectangle pageSize = reader.getPageSize(1);
+            assertThat(pageSize.getWidth()).isGreaterThan(pageSize.getHeight());
+        } finally {
+            reader.close();
+        }
+
         String text = extractText(pdf);
         assertThat(text).contains("CONFIDENCIAL");
         assertThat(text).contains(patient.documentNumber());
@@ -120,6 +130,15 @@ class PrescriptionPdfIT {
         assertThat(text).contains("Los mejores tratamientos");
         assertThat(text).contains("+593 96 219 8909");
         assertThat(text).doesNotContain("Twitter");
+
+        assertThat(text).contains("Rp.");
+        assertThat(text).contains("INDICACIONES");
+        assertThat(countOccurrences(text, "CONFIDENCIAL")).isGreaterThanOrEqualTo(2);
+        assertThat(countOccurrences(text, patient.documentNumber())).isGreaterThanOrEqualTo(2);
+
+        String medicationName = searchMedications("amo").getFirst().name();
+        assertThat(countOccurrences(text, medicationName)).isGreaterThanOrEqualTo(2);
+        assertThat(text).contains(item.dose());
 
         Files.createDirectories(Path.of("target"));
         Files.write(Path.of("target/prescription-sample.pdf"), pdf);
@@ -317,5 +336,15 @@ class PrescriptionPdfIT {
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(loginResponse.getBody().getData().accessToken());
         return headers;
+    }
+
+    private int countOccurrences(String text, String target) {
+        int count = 0;
+        int index = 0;
+        while ((index = text.indexOf(target, index)) != -1) {
+            count++;
+            index += target.length();
+        }
+        return count;
     }
 }

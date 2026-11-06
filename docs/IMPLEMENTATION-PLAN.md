@@ -124,6 +124,7 @@ tests de reglas puras). La columna `*IT` y los tests listados en §4 son orienta
 | 031 | Bot: /bot/specialties solo con especialidades que tienen profesionales activos | — | 015a | BotAvailabilityIT (caso nuevo) |
 | 032 | El director edita email y nombre de usuario de una cuenta (D-24b) | — | 019 | UserManagementIT (casos nuevos) |
 | 033 | Bot: horario semanal de profesionales (/bot/schedule) | — | 016a | BotAvailabilityIT (casos nuevos) |
+| 034 | Receta PDF en dos mitades: Rp. e Indicaciones | — | 011d | PrescriptionPdfIT (aserciones) |
 
 (007 y 008 van separadas: CIE-10 en `V7__icd10_catalog.sql` y atención en `V7_1__encounters.sql`, para no renumerar 009+.)
 (El historial inmediato `GET /patients/{id}/clinical-summary` de §4.4 sale de la 008: es la tarea 011c.)
@@ -365,7 +366,7 @@ Reglas:
 - `DRAFT` editable; `POST /prescriptions/{id}/issue` → `ISSUED`, inmutable (corregir = anular y crear).
 - `GET /prescriptions/{id}/pdf` (solo ISSUED): clínica, "CONFIDENCIAL", paciente (nombre, cédula,
   edad), fecha, CIE-10 + descripción, ítems, indicaciones generales, profesional + registro, línea
-  de firma y sello.
+  de firma y sello. Formato (tarea 034, D-34): A4 horizontal en dos mitades con línea de corte; izquierda Rp. (medicamento, concentración, presentación, cantidad), derecha Indicaciones (posología, indicaciones generales); ambas con cabecera, paciente, CONFIDENCIAL, sello y firma.
 - Enlace temporal firmado (tarea 026, G-14): `POST /prescriptions/{id}/pdf-link` (`RECORD_READ`) genera enlace de 5 min; `GET /prescriptions/{id}/receta.pdf?t=` público sin Bearer; el token no autentica como Bearer ni el de sesión sirve como `t`.
 - Semilla ampliada V19: antibióticos, analgésicos/AINE, corticoide, antivirales, antifúngicos y tópicos bucales de
   receta común (sin receta especial ni anestésicos de consultorio); pediátricos con dosis por kg.
@@ -661,6 +662,7 @@ quitar RECORD_* de ADMIN en la semilla (hoy ADMIN = todos).
 | D-31 | `GET /patients/list` de solo lectura con `PATIENT_READ`; el saldo (`pendingBalance`) solo con `BILLING_READ` (si no, `null`; `withBalance=true` → 403); saldo calculado en SQL igual que `AccountService`; rango máx. 366 días | tarea 029 |
 | D-32 | Ortodoncia con tratamiento completo (monto acordado D8080, $1200) y controles a $0 (D8670) con diagnóstico Z46.4; especialidad Ortodoncia (15 min); saldo refleja cuánto falta pagar con abonos libres | tarea 030 |
 | D-33 | Recordatorios solo a pacientes con consentimiento vigente aceptado en el bot (LOPDP); recepción no registra consentimiento, así que un paciente agendado en recepción que nunca escribió al bot no recibe recordatorio. Registrar el consentimiento en recepción queda como recomendación | tareas 017a, 017b |
+| D-34 | Receta en A4 horizontal partida en dos mitades que valen solas tras el corte: Rp. (izquierda) e Indicaciones/posología (derecha); el diagnóstico CIE-10 va en ambas | tarea 034 |
 
 **Pendientes:**
 | ID | Decisión | Propuesta | Afecta |
