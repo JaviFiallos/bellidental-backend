@@ -1,0 +1,528 @@
+% Manual de usuario — Bellidental. Compilar con: bash docs/manual/build.sh
+\documentclass[11pt,a4paper,oneside]{report}
+
+\usepackage[spanish,es-nodecimaldot,es-tabla]{babel}
+\usepackage{fontspec}
+\setmainfont{Source Sans 3}
+\usepackage[top=2.4cm,bottom=2.4cm,left=2.3cm,right=2.3cm,headheight=14pt]{geometry}
+\usepackage{graphicx,float,xcolor,tikz,tabularx,booktabs,enumitem,fancyhdr,titlesec}
+\usepackage[most]{tcolorbox}
+\usepackage[hidelinks]{hyperref}
+\usepackage[font=small,labelfont=bf]{caption}
+
+% ---------- Datos del documento (completar) ----------
+\newcommand{\autor}{[Nombre del autor]}
+\newcommand{\version}{1.0}
+\newcommand{\fecha}{Noviembre de 2026}
+
+% ---------- Colores (los del sistema) ----------
+\definecolor{marino}{HTML}{1B3A5C}
+\definecolor{acento}{HTML}{E0A050}
+\definecolor{marca}{HTML}{D64545}
+\definecolor{gris}{HTML}{6B7280}
+\definecolor{notafondo}{HTML}{EEF4FA}
+\definecolor{avisofondo}{HTML}{FDF3E4}
+
+% ---------- Títulos, encabezado y pie ----------
+\titleformat{\chapter}[hang]{\Huge\bfseries\color{marino}}{\thechapter\hspace{12pt}\textcolor{acento}{|}\hspace{12pt}}{0pt}{}
+\titlespacing*{\chapter}{0pt}{-10pt}{20pt}
+\titleformat{\section}{\Large\bfseries\color{marino}}{\thesection}{10pt}{}
+\titleformat{\subsection}{\large\bfseries\color{marino}}{\thesubsection}{8pt}{}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\color{gris}Manual de usuario · Bellidental}
+\fancyhead[R]{\small\color{gris}\leftmark}
+\fancyfoot[C]{\small\color{gris}\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\chaptermark}[1]{\markboth{#1}{}}
+\fancypagestyle{plain}{\fancyhf{}\fancyfoot[C]{\small\color{gris}\thepage}\renewcommand{\headrulewidth}{0pt}}
+
+\setlist[enumerate]{leftmargin=*,itemsep=2pt,topsep=4pt}
+\setlist[itemize]{leftmargin=*,itemsep=1pt,topsep=3pt}
+\setlength{\parskip}{5pt}
+\setlength{\parindent}{0pt}
+
+% ---------- Recuadros ----------
+\newtcolorbox{nota}{enhanced,colback=notafondo,colframe=marino,boxrule=0pt,leftrule=3pt,arc=0pt,
+  left=8pt,right=8pt,top=5pt,bottom=5pt,fontupper=\small,before upper={\textbf{\color{marino}Nota.}\ }}
+\newtcolorbox{importante}{enhanced,colback=avisofondo,colframe=acento,boxrule=0pt,leftrule=3pt,arc=0pt,
+  left=8pt,right=8pt,top=5pt,bottom=5pt,fontupper=\small,before upper={\textbf{\color{acento!70!black}Importante.}\ }}
+\newcommand{\para}[1]{\textit{\color{gris}#1}\par}  % para qué sirve la sección
+\newcommand{\boton}[1]{\textbf{#1}}                 % texto de un botón o menú
+
+% ---------- Marcadores numerados ----------
+% \num{n}: el número en el texto. \marca{x}{y}{n}: el número sobre la captura (x, y en píxeles de 1440×900).
+\newcommand{\num}[1]{\tikz[baseline=(c.base)]\node[circle,fill=marca,text=white,font=\bfseries\scriptsize,
+  inner sep=0pt,minimum size=4.2mm](c){#1};}
+\newcommand{\marca}[3]{\node[circle,fill=marca,text=white,font=\bfseries\small,inner sep=0pt,minimum size=5.5mm,
+  draw=white,line width=0.9pt] at ({#1/1440},{1-#2/900}) {#3};}
+
+% \captura[ancho]{archivo}{pie}{marcas}. Si la imagen no existe, deja un recuadro de captura pendiente.
+\newcommand{\captura}[4][\linewidth]{%
+  \begin{figure}[H]\centering
+  \IfFileExists{img/#2.png}{%
+    \begin{tikzpicture}
+      \node[anchor=south west,inner sep=0] (img) {\includegraphics[width=#1]{img/#2.png}};
+      \draw[gris!40,line width=0.6pt] (img.south west) rectangle (img.north east);
+      \begin{scope}[x={(img.south east)},y={(img.north west)}]#4\end{scope}
+    \end{tikzpicture}}{%
+    \begin{tcolorbox}[width=#1,height=5cm,valign=center,halign=center,colback=white,colframe=marca,
+      borderline={0.8pt}{0pt}{marca,dashed},boxrule=0pt]
+      \color{marca}\textbf{Captura pendiente}\\[2pt]\small\texttt{img/#2.png}
+    \end{tcolorbox}}
+  \caption{#3}\label{fig:#2}
+  \end{figure}}
+
+\begin{document}
+
+% ================= PORTADA =================
+\begin{titlepage}
+\begin{tikzpicture}[remember picture,overlay]
+  \fill[marino] (current page.north west) rectangle ([yshift=-11cm]current page.north east);
+  \fill[acento] ([yshift=-11cm]current page.north west) rectangle ([yshift=-11.25cm]current page.north east);
+  \node at ([yshift=-5.2cm]current page.north) {\includegraphics[width=4.2cm]{assets/logo.png}};
+  \node[text=white,font=\large\scshape] at ([yshift=-8.7cm]current page.north) {Centro Odontológico Bellidental};
+\end{tikzpicture}
+\vspace*{10.5cm}
+\begin{center}
+  {\fontsize{34}{40}\selectfont\bfseries\color{marino} Manual de usuario\par}
+  \vspace{8pt}
+  {\Large\color{gris} Sistema de historia clínica, agenda y cobros\par}
+  \vfill
+  \begin{tabular}{rl}
+    \color{gris}Versión & \version\\
+    \color{gris}Fecha & \fecha\\
+    \color{gris}Elaborado por & \autor\\
+  \end{tabular}
+\end{center}
+\end{titlepage}
+
+\pagenumbering{roman}
+\tableofcontents
+\listoffigures
+\clearpage
+\pagenumbering{arabic}
+
+% ================= 1. INTRODUCCIÓN =================
+\chapter{Introducción}
+
+\section{Propósito}
+Este manual explica cómo usar el sistema Bellidental en el trabajo diario de la clínica: registrar pacientes,
+manejar la agenda, atender en consultorio con la historia clínica digital, cobrar y administrar el sistema.
+Sigue el recorrido de un paciente desde que se agenda hasta que paga, en el orden en que ocurre en la clínica.
+
+\section{Perfiles}
+Cada persona entra con su propio usuario. El sistema muestra a cada uno solo lo que necesita para su trabajo:
+
+\begin{center}
+\begin{tabularx}{\linewidth}{@{}lX@{}}
+\toprule
+\textbf{Perfil} & \textbf{Qué hace} \\ \midrule
+Recepción & Agenda, registro de pacientes, llegada del paciente, horarios de los profesionales y cobros.
+  \textbf{No ve datos clínicos} (diagnósticos, antecedentes, odontograma). \\
+Consultorio & Sus citas del día, la atención clínica completa (antecedentes, odontograma, diagnósticos,
+  tratamientos, recetas) y el Formulario 033. \\
+Dirección & Lo mismo que Consultorio, más estadísticas, usuarios, profesionales, catálogos, auditoría y
+  exportación de datos. \\ \bottomrule
+\end{tabularx}
+\end{center}
+
+\section{Cómo leer este manual}
+\begin{itemize}
+  \item Cada sección empieza con una línea en cursiva que dice para qué sirve.
+  \item Los pasos están numerados. Los círculos rojos como \num{1} señalan en la captura el lugar del paso
+        con el mismo número.
+  \item Los nombres de botones y menús aparecen en \boton{negrita}, tal como se ven en pantalla.
+  \item Los datos de pacientes y profesionales de las capturas son ficticios.
+\end{itemize}
+
+% ================= 2. PRIMEROS PASOS =================
+\chapter{Primeros pasos}
+
+\section{Iniciar sesión}
+\para{Cada usuario entra con su correo y su contraseña personal (RNF01).}
+\begin{enumerate}
+  \item Abra el sistema en el navegador con la dirección que le entregó la clínica.
+  \item Escriba su \boton{Correo electrónico} \num{1} y su \boton{Contraseña} \num{2}. El ícono del ojo
+        muestra la contraseña para revisarla.
+  \item Pulse \boton{Ingresar} \num{3}. El sistema abre la pantalla de inicio de su perfil: la
+        \boton{Agenda} en Recepción o \boton{Mis citas} en Consultorio.
+\end{enumerate}
+\captura[0.85\linewidth]{01-inicio-sesion}{Pantalla de inicio de sesión}{%
+  \marca{790}{408}{1}\marca{790}{500}{2}\marca{790}{572}{3}}
+\begin{nota}Si olvida su contraseña, pídala al director: él la restablece desde \boton{Usuarios}.\end{nota}
+
+\section{La pantalla principal}
+\begin{itemize}
+  \item \textbf{Menú lateral}: las opciones de su perfil. Abajo están su usuario, \boton{Cambiar contraseña}
+        y \boton{Cerrar sesión}.
+  \item \textbf{Buscador de pacientes} (arriba, o \texttt{Ctrl+K}): busca por cédula, nombre o teléfono desde
+        cualquier pantalla.
+  \item \textbf{Próxima cita} y fecha de hoy, en la esquina superior derecha.
+\end{itemize}
+
+\section{Cambiar la contraseña}
+\para{La primera vez que entre, cambie la contraseña temporal por una propia.}
+\begin{enumerate}
+  \item Pulse \boton{Cambiar contraseña} al pie del menú lateral.
+  \item Escriba la \boton{Contraseña actual} \num{1} y dos veces la nueva \num{2}, con al menos 10 caracteres.
+  \item Pulse \boton{Guardar contraseña} \num{3}.
+\end{enumerate}
+\captura{20-cambiar-contrasena}{Cambio de contraseña}{%
+  \marca{288}{249}{1}\marca{288}{342}{2}\marca{288}{517}{3}}
+
+% ================= 3. RECEPCIÓN =================
+\chapter{Recepción}
+
+\section{Horarios de los profesionales}
+\para{Registrar qué días y horas atiende cada profesional, para que la agenda solo ofrezca horas válidas (RF07).}
+
+\subsection*{Horario semanal}
+Es el horario fijo de cada semana, por ejemplo, lunes de 08:00 a 12:00 y de 14:00 a 20:00.
+\begin{enumerate}
+  \item En el menú, entre a \boton{Horarios}.
+  \item Elija el \boton{Profesional} \num{1}.
+  \item En el día que corresponda, pulse \boton{+ Añadir turno} \num{2}, escriba la hora de inicio y de fin y
+        guarde. Un día puede tener varios turnos (mañana y tarde) \num{3}.
+  \item El \boton{Calendario} \num{4} muestra el horario resultante del mes.
+\end{enumerate}
+\captura{02-horarios-semanales}{Horario semanal de la Dra. Carolina Mena: lunes en dos turnos}{%
+  \marca{262}{229}{1}\marca{290}{390}{2}\marca{620}{336}{3}\marca{1300}{290}{4}}
+
+\subsection*{Excepciones (turno por fecha)}
+Sirve para especialistas que vienen ciertos días, para atender un día fuera del horario habitual o para marcar un
+día libre.
+\begin{enumerate}
+  \item Al final de la página, en \boton{Excepciones}, pulse \boton{Añadir excepción} \num{1}.
+  \item Elija la fecha y las horas, o indique que ese día no atiende.
+  \item La excepción aparece en la lista \num{2}; con \boton{Quitar excepción} se elimina.
+\end{enumerate}
+\captura{03-turno-por-fecha}{Excepción para un día concreto}{\marca{580}{758}{1}\marca{250}{832}{2}}
+\begin{importante}Si un día tiene una excepción, \textbf{reemplaza} al horario semanal de ese día. Para que un
+profesional no atienda un día (vacaciones, enfermedad), registre una excepción de ``no atiende''.\end{importante}
+
+\section{Registrar un paciente nuevo}
+\para{Registrar los datos de identificación y contacto del paciente (RF06). Los antecedentes médicos no se
+preguntan en recepción: los registra el odontólogo en el consultorio.}
+\begin{enumerate}
+  \item Busque primero al paciente en el buscador por cédula o nombre, para no duplicarlo. Si no existe, pulse
+        \boton{Registrar paciente}.
+  \item Complete \boton{Identificación}: cédula \num{1}, nombres, apellidos \num{2}, fecha de nacimiento \num{3}
+        y sexo. Son obligatorios.
+  \item Complete \boton{Contacto}: el teléfono celular \num{4} es el que usará el bot de WhatsApp para los
+        recordatorios.
+  \item En \boton{Observaciones} puede anotar notas administrativas (presupuestos, formas de pago acordadas).
+  \item Guarde. El sistema valida la cédula y avisa si ya existe un paciente con ella.
+\end{enumerate}
+\captura{04-registro-paciente}{Formulario de registro de paciente}{%
+  \marca{825}{144}{1}\marca{825}{236}{2}\marca{395}{329}{3}\marca{395}{605}{4}}
+
+\section{Agendar una cita}
+\para{Agendar en una agenda única por profesional, sin cruces de horario (RF07).}
+\begin{enumerate}
+  \item En la \boton{Agenda}, pulse \boton{Nueva cita} \num{1}.
+  \item Busque al paciente, elija la \boton{Especialidad} \num{2} y el \boton{Profesional} \num{3}. La duración
+        se completa sola según la especialidad y se puede ajustar.
+  \item Elija la fecha y una de las \textbf{horas libres} \num{4}. El sistema solo muestra horas dentro del
+        horario del profesional y que no se cruzan con otra cita.
+  \item Escriba el motivo (opcional) y pulse \boton{Agendar cita} \num{5}.
+\end{enumerate}
+\captura{05-agendar-cita}{Nueva cita: el sistema ofrece solo las horas libres}{%
+  \marca{545}{258}{1}\marca{1030}{217}{2}\marca{1030}{310}{3}\marca{1030}{640}{4}\marca{1030}{862}{5}}
+\begin{nota}Si la duración elegida no cabe en el horario disponible, el sistema lo indica y pide otra hora
+\num{1}. Así no es posible agendar dos citas del mismo profesional a la vez.\end{nota}
+\captura{06-aviso-cruce-cita}{Aviso cuando la cita no cabe en el horario}{\marca{1012}{550}{1}}
+
+\section{La agenda del día}
+La agenda muestra una columna por profesional, cada uno con su color \num{1}. La línea oscura marca la hora
+actual \num{2}. Con \boton{Por estado} se agrupan las citas en agendadas, en espera, en atención y atendidas.
+Con las flechas o \boton{Hoy} se cambia de día.
+\captura{07-agenda-del-dia}{Agenda del día por profesional}{\marca{340}{340}{1}\marca{885}{340}{1}\marca{330}{640}{2}}
+
+\section{Llegada del paciente}
+\para{Registrar que el paciente llegó, para que el odontólogo lo vea en espera.}
+\begin{enumerate}
+  \item Cuando el paciente llegue, pulse \boton{Llegó} \num{1} sobre su cita.
+  \item La cita pasa a \textbf{En espera} \num{2} y aparece en la pantalla del odontólogo.
+  \item Al pulsar una cita se abre su panel con fecha, profesional y origen \num{3}, y las acciones
+        \boton{Confirmar}, \boton{Reprogramar} o \boton{Cancelar cita}.
+\end{enumerate}
+\captura{09-check-in-en-espera}{La cita pasa a ``En espera'' después del check-in}{%
+  \marca{1365}{475}{1}\marca{760}{692}{2}}
+\captura{08-check-in-paciente}{Panel de la cita}{\marca{1060}{390}{3}}
+
+\section{Paciente sin cita}
+\para{Atender a quien llega sin cita: toda atención queda ligada a una cita (RF07).}
+\begin{enumerate}
+  \item En la \boton{Agenda}, pulse \boton{Sin cita}. Se abre \boton{Atención sin cita}.
+  \item Busque al \boton{Paciente} \num{1} y elija la \boton{Especialidad} \num{2}.
+  \item En \boton{Profesional} \num{3} cada nombre indica desde qué hora está libre. Elija uno.
+  \item El sistema propone la primera hora libre \num{4}; puede elegir otra.
+  \item Pulse \boton{Registrar llegada} \num{5}. Se crea la cita y el paciente queda directamente \textbf{En espera}.
+\end{enumerate}
+\captura{21-paciente-sin-cita}{Atención de un paciente sin cita}{%
+  \marca{1014}{143}{1}\marca{1014}{249}{2}\marca{1014}{342}{3}\marca{1014}{577}{4}\marca{1014}{718}{5}}
+
+\section{Reprogramar una cita}
+\para{Cambiar la fecha u hora de una cita sin perder su historial (RF15).}
+\begin{enumerate}
+  \item Abra la cita en la agenda y pulse \boton{Reprogramar}. El panel muestra la cita original.
+  \item Elija la nueva \boton{Fecha} \num{1} (los botones \boton{Hoy} y \boton{Mañana} ayudan) y una hora
+        libre \num{2}, igual que al agendar.
+  \item Anote el motivo \num{3} y pulse \boton{Reprogramar} \num{4}.
+  \item La cita original queda como \textit{reprogramada} y se crea la nueva. El paciente también puede
+        reprogramar por WhatsApp (capítulo \ref{cap:whatsapp}).
+\end{enumerate}
+\captura{22-reprogramar-cita}{Reprogramar una cita para el día siguiente}{%
+  \marca{1014}{234}{1}\marca{1014}{551}{2}\marca{1014}{743}{3}\marca{1014}{838}{4}}
+
+% ================= 4. CONSULTORIO =================
+\chapter{Consultorio}
+Este capítulo es para los odontólogos y el director. Todo lo que se registra aquí forma la historia clínica del
+paciente: ya no hace falta transcribir la ficha al Formulario 033 ni a Excel.
+
+\section{Mis citas de hoy}
+\para{Ver los pacientes del día ordenados por estado.}
+\begin{enumerate}
+  \item Al entrar, \boton{Mis citas} muestra cuatro columnas: \textbf{Agendadas}, \textbf{En espera} \num{1},
+        \textbf{En atención} y \textbf{Atendidas}.
+  \item Cuando recepción marca la llegada, el paciente pasa a \textbf{En espera}. Pulse \boton{Atender} \num{2}.
+\end{enumerate}
+\captura{10-mis-citas-consultorio}{Mis citas: el paciente está en espera}{\marca{560}{180}{1}\marca{580}{370}{2}}
+
+\section{Abrir la atención}
+\begin{enumerate}
+  \item Escriba el \boton{Motivo de consulta} \num{1}. El texto empieza con ``Paciente refiere''.
+  \item Pulse \boton{Abrir atención} \num{2} (o \texttt{Ctrl+Enter}).
+\end{enumerate}
+\captura{11-abrir-atencion}{Abrir la atención con el motivo de consulta}{\marca{460}{440}{1}\marca{897}{620}{2}}
+
+\section{Antecedentes}
+\para{Registrar los antecedentes en privado, en el consultorio y no en la sala de espera (RF01).}
+\begin{enumerate}
+  \item En la cabecera de la atención se ven el nombre, la edad, la cédula y el número de historia clínica.
+        Si faltan antecedentes, aparece el aviso \boton{Antecedentes sin registrar}.
+  \item Pulse \boton{Registrar antecedentes} \num{1}.
+  \item Escriba la \boton{Medicación actual} \num{2} y, para cada condición, pulse \boton{+ Personal} o
+        \boton{+ Familiar} \num{3}. Si no tiene ninguno, pulse \boton{El paciente no refiere antecedentes}. Cada
+        cambio se guarda solo.
+  \item Las alergias y la medicación quedan a la vista en la cabecera \num{4} durante toda la atención.
+\end{enumerate}
+\captura{12-antecedentes-y-motivo}{Antecedentes: alergia a antibióticos registrada como personal}{%
+  \marca{290}{234}{1}\marca{1040}{196}{2}\marca{1040}{364}{3}\marca{398}{215}{4}}
+
+\section{Odontograma}
+\para{Registrar el estado de cada pieza y cara: rojo es pendiente y azul es realizado (RF02).}
+\begin{enumerate}
+  \item Toque una cara de la pieza \num{1}, o el número de la pieza para condiciones de toda la pieza. A la
+        derecha se abre el panel de esa pieza.
+  \item Confirme la \boton{Cara} \num{2} (V, L, M, D, O) y elija el \boton{Estado} \num{3}:
+        \textbf{Pendiente (rojo)} o \textbf{Realizado (azul)}.
+  \item Pulse la condición \num{4} (caries, obturación, sellante, extracción indicada, etc.). Queda registrada.
+  \item Las filas de \textbf{movilidad} y \textbf{recesión} se marcan con su grado. Debajo se calculan solos los
+        índices \textbf{CPO} y \textbf{ceo} \num{5}.
+\end{enumerate}
+\captura{13-odontograma}{Caries pendiente en la 46 (rojo) y obturación realizada en la 36 (azul)}{%
+  \marca{452}{560}{1}\marca{1008}{552}{2}\marca{1008}{640}{3}\marca{1008}{729}{4}\marca{288}{716}{5}}
+\begin{nota}Solo los odontólogos pueden editar el odontograma. Si se equivoca, anule el hallazgo y regístrelo de
+nuevo: el sistema no borra datos clínicos, los marca como anulados.\end{nota}
+
+\section{Diagnóstico CIE-10}
+\para{Registrar diagnósticos con el código CIE-10 sin buscarlo en libros (RF03).}
+\begin{enumerate}
+  \item En \boton{Diagnósticos}, elija \boton{Definitivo} o \boton{Presuntivo} \num{1}.
+  \item Escriba el código (por ejemplo, \texttt{K02.1}) o una palabra (\texttt{caries}) \num{2}.
+  \item Elija el resultado de la lista \num{3}. El diagnóstico queda registrado y se puede anular si fue un error.
+\end{enumerate}
+\captura{14-diagnostico-cie10}{Búsqueda CIE-10 por texto: ``caries''}{%
+  \marca{288}{300}{1}\marca{486}{320}{2}\marca{486}{513}{3}}
+
+\section{Tratamientos}
+\para{Registrar los procedimientos realizados con su precio del catálogo (RF04).}
+\begin{enumerate}
+  \item Pulse \boton{Registrar tratamiento} y busque por código o nombre \num{1} (por ejemplo, ``resina'').
+  \item En \boton{Hallazgo pendiente} \num{2} elija el hallazgo rojo que se trató: la pieza y la cara se completan
+        solas.
+  \item El \boton{Precio} \num{3} viene del catálogo y se puede ajustar.
+  \item Elija el \boton{Diagnóstico} \num{4} al que responde y pulse \boton{Registrar}.
+\end{enumerate}
+\captura{15-tratamiento-catalogo}{Resina en la pieza 46, ligada a la caries pendiente y al diagnóstico K02.1}{%
+  \marca{1040}{107}{1}\marca{1055}{311}{2}\marca{1055}{498}{3}\marca{1055}{803}{4}}
+\begin{nota}Al registrar un tratamiento ligado a un hallazgo pendiente, ese hallazgo pasa a realizado (azul) en
+el odontograma y en el Formulario 033.\end{nota}
+
+\section{Receta}
+\para{Emitir una receta legible desde el catálogo de medicamentos, ligada a un diagnóstico (RF05).}
+\begin{enumerate}
+  \item En \boton{Receta}, pulse \boton{Nueva receta}.
+  \item Elija el \boton{Diagnóstico} \num{1} y escriba el nombre del \boton{Medicamento} \num{2} (``ibu'', ``amo'').
+  \item Pulse una \textbf{posología predefinida} \num{3} (por ejemplo, ``Cada 8 h × 3 días''): dosis,
+        frecuencia, duración e indicaciones se completan solas.
+  \item Pulse \boton{Agregar} \num{4}. Repita para cada medicamento.
+  \item Elija las \boton{Indicaciones generales} (por ejemplo, ``Tomar con alimentos'') y pulse
+        \boton{Emitir e imprimir}. Con \boton{Guardar borrador} se puede terminar después.
+\end{enumerate}
+\captura{16-receta-medicamentos}{Nueva receta: ibuprofeno con la posología ``Cada 8 h × 3 días''}{%
+  \marca{1040}{137}{1}\marca{1050}{270}{2}\marca{1050}{322}{3}\marca{1240}{835}{4}}
+\begin{importante}Revise las alergias de la cabecera antes de recetar. En el ejemplo, el paciente es alérgico a
+antibióticos, por eso se receta un analgésico.\end{importante}
+El PDF se abre listo para imprimir: lleva el número de receta y la leyenda ``CONFIDENCIAL'' \num{1}; a la
+izquierda la receta (\textit{Rp.}) \num{2} y a la derecha las indicaciones para el paciente \num{3}. El odontólogo
+firma y sella al pie \num{4}.
+\captura{17-receta-pdf}{Receta en PDF: número R-000001, Rp. e indicaciones}{%
+  \marca{740}{190}{1}\marca{335}{333}{2}\marca{875}{333}{3}\marca{630}{672}{4}}
+\begin{nota}Los medicamentos y sus posologías se administran en \boton{Medicamentos}, en el menú lateral.\end{nota}
+
+\section{Completar la atención}
+\begin{enumerate}
+  \item Despliegue \boton{Más del 033} y complete los \textbf{signos vitales} \num{1}, el \textbf{examen
+        estomatognático} (o \boton{Sin patología aparente} \num{2}) y los \textbf{indicadores de salud bucal}
+        \num{3}. El encabezado de la sección pasa de ``Falta: \ldots'' a ``Completo''.
+  \item Pulse \boton{Completar atención}.
+  \item Revise el \boton{Total de la sesión} y la receta emitida. En la barra inferior puede
+        \boton{Cobrar ahora} o pulsar \boton{Después} y dejar el cobro a recepción.
+\end{enumerate}
+\captura{31-mas-del-033}{Más del 033: signos vitales, examen e indicadores}{%
+  \marca{286}{183}{1}\marca{1200}{351}{2}\marca{286}{683}{3}}
+\captura{18-atencion-completada}{Atención completada: tratamiento, total y receta emitida}{%
+  \marca{1150}{430}{1}\marca{302}{591}{2}\marca{1005}{860}{3}}
+\begin{importante}Una atención completada queda \textbf{cerrada}. Los errores se corrigen anulando el registro y
+registrándolo de nuevo, y todo cambio queda en el historial de cambios.\end{importante}
+
+\section{Formulario 033}
+\para{Ver e imprimir la historia clínica en el formato oficial del MSP (RF09).}
+\begin{enumerate}
+  \item En la ficha o la atención del paciente, pulse \boton{Formulario 033}.
+  \item Elija la \boton{Atención de referencia} \num{1}.
+  \item Pulse \boton{Imprimir} \num{2}.
+\end{enumerate}
+\captura{19-formulario-033}{Formulario 033 de la sesión 2: antecedentes, signos vitales y odontograma}{%
+  \marca{805}{141}{1}\marca{1230}{141}{2}}
+
+% ================= 5. COBROS =================
+\chapter{Cobros}
+\para{Registrar pagos y abonos; el saldo se calcula solo (RF08).}
+
+\section{Estado de cuenta}
+Recepción ve los tratamientos realizados con su fecha, profesional y valor, sus abonos y el saldo pendiente,
+\textbf{sin diagnósticos}. Se abre desde la ficha del paciente (buscador, o \boton{Ver ficha} en el panel de la
+cita). Arriba está el resumen \num{1}: cargos, abonos y saldo pendiente; debajo, cada tratamiento con el saldo
+acumulado \num{2}.
+\captura{23-estado-de-cuenta}{Estado de cuenta: \$ 80,00 de cargos y saldo pendiente}{%
+  \marca{330}{276}{1}\marca{330}{365}{2}\marca{1150}{262}{3}}
+
+\section{Registrar un abono e imprimir el comprobante}
+\begin{enumerate}
+  \item En el \boton{Estado de cuenta}, pulse \boton{Registrar abono} (\num{3} en la figura anterior).
+  \item Escriba el \boton{Monto} \num{1}: puede ser un abono parcial.
+  \item Elija el \boton{Método} \num{2}: efectivo, transferencia o tarjeta.
+  \item En \boton{Sesión} \num{3} elija la atención que se paga y pulse \boton{Guardar abono} \num{4}.
+\end{enumerate}
+\captura{24-registrar-abono}{Abono parcial de \$ 50,00 por transferencia}{%
+  \marca{347}{376}{1}\marca{1012}{375}{2}\marca{347}{469}{3}\marca{1015}{530}{4}}
+El abono recibe un número de comprobante \num{1} y el saldo se actualiza al instante. Pulse
+\boton{Imprimir comprobante} \num{2} para entregarlo; más tarde se puede \boton{Reimprimir comprobante} desde la
+lista de \boton{Abonos} \num{3}.
+\captura{32-abono-registrado}{Abono registrado con el comprobante C-000001; saldo pendiente de \$ 30,00}{%
+  \marca{345}{322}{1}\marca{965}{343}{2}\marca{330}{651}{3}}
+\captura{25-comprobante}{Comprobante interno de pago, con la línea de firma del paciente}{%
+  \marca{625}{189}{1}\marca{810}{385}{2}}
+\begin{nota}El comprobante es interno: no reemplaza a la factura del SRI. Un pago mal registrado se
+\textbf{anula}; no se borra.\end{nota}
+
+% ================= 6. DIRECCIÓN =================
+\chapter{Dirección}
+El director tiene las mismas pantallas que el consultorio y, además, las de administración.
+
+\section{Estadísticas}
+Elija el período \num{1} (día, semana, mes o un rango). Los indicadores \num{2} muestran atenciones completadas,
+citas, porcentaje de inasistencia, pacientes nuevos, lo cobrado y el saldo por cobrar. El gráfico \num{3} muestra
+la actividad por día: pacientes atendidos, citas, pacientes nuevos o ingresos. Más abajo hay citas por estado,
+por canal (recepción o WhatsApp) y lo cobrado por método.
+\captura{26-estadisticas}{Estadísticas del mes}{\marca{280}{249}{1}\marca{280}{315}{2}\marca{300}{497}{3}}
+
+\section{Usuarios}
+Cada persona tiene su propio usuario: no se comparten cuentas (RNF01). Con \boton{Nueva secretaria} \num{1} se
+crea una cuenta de recepción; las cuentas de los odontólogos se crean desde \boton{Profesionales}. En cada fila
+\num{2} se puede \boton{Editar}, cambiar \boton{Roles}, \boton{Restablecer contraseña} o \boton{Desactivar}. La
+cuenta \texttt{bot\_whatsapp} es del sistema y no puede iniciar sesión.
+\captura{27-usuarios}{Usuarios de la clínica}{\marca{1212}{149}{1}\marca{930}{364}{2}}
+
+\section{Profesionales y catálogo}
+En \boton{Profesionales} se registran los datos de cada odontólogo, sus especialidades, su color en la agenda y su
+acceso al sistema. En \boton{Catálogo} \num{1} se mantienen los tratamientos con su código y precio \num{2}, y las
+especialidades con su duración de cita. \boton{Nuevo tratamiento} \num{3} agrega uno; un tratamiento que ya no se
+usa se \boton{Desactiva}, no se borra (RF04). Los medicamentos y sus posologías se administran en
+\boton{Medicamentos}.
+\captura{28-catalogo}{Catálogo de tratamientos}{\marca{280}{249}{1}\marca{860}{476}{2}\marca{1188}{149}{3}}
+
+\section{Auditoría e historial de cambios}
+Todo cambio sobre pacientes, citas, atenciones, recetas y pagos queda registrado: quién lo hizo, cuándo y qué
+cambió (RNF02). En la ficha del paciente, \boton{Historial de cambios} muestra cada modificación \num{1} con el
+valor anterior tachado y el nuevo \num{2}. \boton{Auditoría}, en el menú, reúne la actividad de toda la clínica
+con filtros por período, tipo de registro y usuario.
+\captura{29-historial-de-cambios}{Historial de cambios: corrección de la fecha de nacimiento}{%
+  \marca{425}{405}{1}\marca{610}{434}{2}}
+
+\section{Exportar los datos}
+Los datos son de la clínica. En \boton{Auditoría}, \boton{Exportar datos} \num{1} descarga un archivo ZIP con
+toda la información en formato abierto (CSV), que se abre en Excel o en cualquier otro sistema (RNF04).
+\captura{30-exportar-datos}{Auditoría con el botón Exportar datos}{\marca{1190}{350}{1}}
+\begin{nota}Además, el servidor hace un respaldo automático cada día a las 20:30 y guarda una copia cifrada en
+el Google Drive de la clínica.\end{nota}
+
+% ================= 7. WHATSAPP =================
+\chapter{Atención por WhatsApp}\label{cap:whatsapp}
+El bot de WhatsApp de la clínica \textbf{complementa} a recepción, no la reemplaza. Lee y escribe en la misma
+agenda, así que nunca agenda sobre una hora ocupada. Entiende menús y botones, y también texto libre como
+``¿cuánto cuesta una limpieza?'' o ``quiero cambiar mi cita''.
+
+\begin{center}
+\begin{tabularx}{\linewidth}{@{}lX@{}}
+\toprule
+\textbf{El paciente puede} & \textbf{Detalle} \\ \midrule
+Aceptar el aviso de privacidad & Lo primero que ve; sin aceptarlo, el bot no continúa (RF10). \\
+Consultar horarios y precios & Responde con los datos del sistema (RF11). \\
+Agendar una cita & Solo pacientes ya registrados en recepción; ofrece horas libres reales (RF12). \\
+Recibir el recordatorio & El día anterior, con botones \textbf{Confirmar} y \textbf{Cancelar} (RF13). \\
+Reprogramar o cancelar & Hasta 2 horas antes de la cita (RF15). \\ \bottomrule
+\end{tabularx}
+\end{center}
+
+\textbf{Cuándo deriva a recepción (RF14).} Ante preguntas clínicas, consultas de saldo o mensajes que no
+entiende, el bot envía el enlace del WhatsApp de recepción. Si el paciente menciona dolor o urgencia, ofrece la
+primera hora disponible y un texto fijo de emergencia, \textbf{sin dar consejo médico}. El bot nunca muestra
+datos clínicos.
+
+% ================= 8. CONTINGENCIA =================
+\chapter{Si no hay internet}
+El sistema funciona en un servidor en internet. Si la clínica se queda sin conexión, registre la atención en la
+\textbf{ficha rápida de papel} y cárguela en el sistema cuando vuelva la conexión. Mientras tanto, el bot de
+WhatsApp sigue atendiendo a los pacientes, porque no depende de la red de la clínica (RNF05).
+
+% ================= ANEXO =================
+\appendix
+\chapter{Requerimientos y secciones del manual}
+\begin{center}
+\small
+\begin{tabularx}{\linewidth}{@{}lXl@{}}
+\toprule
+\textbf{Req.} & \textbf{Qué pidió la clínica} & \textbf{Sección} \\ \midrule
+RF01 & Historia clínica con los campos del 033; antecedentes por el odontólogo & 4.3, 4.8 \\
+RF02 & Odontograma por pieza y cara, rojo pendiente y azul realizado & 4.4 \\
+RF03 & Búsqueda de diagnósticos CIE-10 & 4.5 \\
+RF04 & Catálogos de tratamientos y medicamentos con precio y posología & 4.6, 4.7, 6.3 \\
+RF05 & Receta desde el catálogo, en PDF con ``CONFIDENCIAL'' & 4.7 \\
+RF06 & Historial inmediato y registro de pacientes & 3.2, 4.1 \\
+RF07 & Agenda única por profesional, con colores y sin cruces & 3.1, 3.3--3.6 \\
+RF08 & Pagos con abono, saldo calculado y comprobante & 5 \\
+RF09 & Vista e impresión del Formulario 033 & 4.9 \\
+RF10--RF15 & Bot de WhatsApp: privacidad, información, agendar, recordar, derivar, reprogramar & 3.7, 7 \\
+RNF01 & Usuarios individuales con perfiles fijos & 2.1, 2.3, 6.2 \\
+RNF02 & Trazabilidad de los cambios & 6.4 \\
+RNF04 & Datos bajo control de la clínica: respaldos y exportación & 6.5 \\
+RNF05 & Contingencia sin internet & 8 \\ \bottomrule
+\end{tabularx}
+\end{center}
+
+\end{document}
